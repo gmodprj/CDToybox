@@ -55,13 +55,13 @@ struct Fixture {
             kCharRec + static_cast<std::size_t>(i) * kCharStride;
         mem.put_u64(kCharPtrs + static_cast<std::size_t>(i) * 8,
                     mem.heap_addr(rec));
-        // 첫 u32: 하위 16비트가 키, 상위 16비트는 다른 필드(실측)
-        mem.put_u32(rec + 0x00, static_cast<std::uint32_t>(key) | 0xABCD0000u);
-        mem.put_u64(rec + 0x08, make_string(name));
-        mem.put_u32(rec + 0xBE, merc_row);  // u16 자리. 상위는 0
-        mem.put_u8(rec + 0x148, catchable ? 1 : 0);
-        mem.put_u8(rec + 0x14B, unique ? 1 : 0);
-        mem.put_u8(rec + 0x156, hirable ? 1 : 0);
+        // 3392: +0x00 문자열 객체*, +0x08 u32 키(하위 16비트가 행 - 상위는 읽는 쪽이 버린다)
+        mem.put_u64(rec + 0x00, make_string(name));
+        mem.put_u32(rec + 0x08, static_cast<std::uint32_t>(key) | 0xABCD0000u);
+        mem.put_u32(rec + 0xA6, merc_row);  // u16 _mercenaryInfo. 상위는 0 (2976 +0xBE)
+        mem.put_u8(rec + 0x47, catchable ? 1 : 0);   // _isCatchable (2976 +0x148)
+        mem.put_u8(rec + 0x48, unique ? 1 : 0);      // _isUnique (2976 +0x14B)
+        mem.put_u8(rec + 0x16, hirable ? 1 : 0);     // _isHirable (2976 +0x156)
     }
 
     void put_merc(int i, const char* name, std::uint8_t type) {
@@ -69,10 +69,11 @@ struct Fixture {
             kMercRec + static_cast<std::size_t>(i) * kMercStride;
         mem.put_u64(kMercPtrs + static_cast<std::size_t>(i) * 8,
                     mem.heap_addr(rec));
-        // +0x00 은 키가 아니라 포인터(실측) - 일부러 큰 값을 넣는다.
-        mem.put_u64(rec + 0x00, mem.heap_addr(0x7000));
-        mem.put_u64(rec + 0x08, make_string(name));
-        mem.put_u8(rec + 0x20, type);
+        // 3392: +0x00 문자열 객체*, +0x08 u8 키(행 번호와 같다), +0x09 부터 bool.
+        mem.put_u64(rec + 0x00, make_string(name));
+        mem.put_u8(rec + 0x08, static_cast<std::uint8_t>(i));
+        mem.put_u8(rec + 0x09, 0);
+        mem.put_u8(rec + 0x2E, type);   // _mercenaryType (2976 +0x20)
     }
 
     Fixture() {

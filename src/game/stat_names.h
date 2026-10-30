@@ -75,9 +75,10 @@ inline constexpr const char* kStatusManagerClass = ".?AVStatusInfoManager@pa@@";
 
 // SubLevelInfo · StatusInfo 레코드. 매니저 배치(+0x30 개수 · +0x58 레코드 배열)는
 // 아이템 표와 같아 `roster_header` 가 그대로 읽는다.
-inline constexpr std::size_t kStatRecStringKey = 0x08;  // 엔진 문자열 객체 포인터
-inline constexpr std::size_t kSubLevelKnowRow = 0x46;   // u16 _knowledgeInfo
-inline constexpr std::size_t kStatusKnowRow = 0x34;     // u16 _activeKnowledgeInfo
+// 3392(2026-10-30) 재배치 - 2976 까지는 문자열 +0x08 · SubLevel +0x46 · Status +0x34.
+inline constexpr std::size_t kStatRecStringKey = 0x00;  // 엔진 문자열 객체 포인터
+inline constexpr std::size_t kSubLevelKnowRow = 0x22;   // u16 _knowledgeInfo
+inline constexpr std::size_t kStatusKnowRow = 0x20;     // u16 _activeKnowledgeInfo
 inline constexpr std::uint16_t kNoKnowRow = 0xFFFF;     // 지식이 없는 스탯
 
 // 엔진 문자열 객체 {char* +0x00, u32 길이 +0x08, u32 해시 +0x0C}.

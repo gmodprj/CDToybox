@@ -68,13 +68,13 @@ struct ItemEntry {
     // 방패 2, 재료 0 이고 툴팁의 원 개수와 같다.
     std::uint32_t max_sockets = 0;
 
-    // 이 아이템 종류의 최대 내구도. 레코드 +0x400 의 `_maxEndurance`
+    // 이 아이템 종류의 최대 내구도. 레코드 +0x0E(2976 까지 +0x400)의 `_maxEndurance`
     // 이고, **0xFFFF 면 내구도가 없는 아이템**이다.
     //
     // 게임이 아이템을 쓸 때 이렇게 본다 (RVA 0x1D9CBB0).
     //
     //   _maxEndurance != 0xFFFF && 인스턴스 내구도 <= 0 &&
-    //   _isDestoryWhenBroken(+0x1FC) != 0   -> 오류 0x36
+    //   _isDestroyWhenBroken(+0x1F · 2976 까지 _isDestoryWhenBroken +0x1FC) != 0 -> 오류 0x36
     std::uint16_t max_endurance = 0xFFFF;
 
     // `_repairDataList` (레코드 +0x408) 의 항목 수. 다른 목록 칸과
@@ -92,7 +92,7 @@ struct ItemEntry {
     // 넣는다. 담금질과 달리 상한 그대로다("-1" 이 아니다).
     std::int16_t max_sharpness = 0;
 
-    // `_equipTypeInfo` (레코드 +0x42). **0xFFFF 면 장비가 아니다** -
+    // `_equipTypeInfo` (레코드 +0x4A · 2976 까지 +0x42). **0xFFFF 면 장비가 아니다** -
     // `_maxEndurance` 와 같은 표기법이다.
     //
     // 지급의 소켓 갈래를 가르는 값이라 읽는다. 생성 함수 0x2A70000 이
@@ -114,7 +114,7 @@ inline constexpr std::uint32_t kMaxItemCount = 1u << 20;
 // 부위다(명세 §4.7-F, `game/equip_types.h`). 나머지 레코드 오프셋과 달리 이것만
 // 헤더에 있는 이유는 탐침(`cdtb_probe effects`)이 모드와 **같은 자리**를 읽어야
 // 하기 때문이다 - 배포 전에 부위 줄을 거기서 본다.
-inline constexpr std::size_t kRecEquipAbleHash = 0x68;
+inline constexpr std::size_t kRecEquipAbleHash = 0x64;   // 3392 (2976 까지 0x68)
 
 // 색인 표와 레코드 배열이 같은 키를 말하는지 본다.
 //
@@ -378,7 +378,7 @@ inline constexpr std::uint32_t kSocketSlotMax = 5;
 
 // ---------------------------------------------------------- 부위(묶음)
 //
-// 부위는 **(분류 `+0xA3`, 장비타입 `+0x42`)** 쌍이다. 분류만으로는
+// 부위는 **(분류 `_itemType`, 장비타입 `_equipTypeInfo`)** 쌍이다. 분류만으로는
 // 갑옷(3/5)과 망토(3/75)가 안 갈린다 - 실측에서 한 분류에 여러 장비타입이
 // 섞이는 자리가 여럿이었다. 이 빌드에서 장비 묶음은 92개다.
 struct SocketPart {

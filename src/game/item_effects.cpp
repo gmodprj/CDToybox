@@ -104,13 +104,21 @@ private:
         return static_cast<std::uintptr_t>(rec);
     }
 
+    // 지연 벡터 칸(3392 부터). 포인터가 널이면 빈 목록이다 - 거짓을 낸다.
+    bool read_lazy_list(std::uintptr_t cell, std::uint64_t* data, std::uint32_t* n) {
+        std::uint64_t vec = 0;
+        if (!r_.read_value(cell, &vec) || vec == 0) return false;
+        const auto v = static_cast<std::uintptr_t>(vec);
+        if (!r_.read_value(v + kLazyVecData, data) || *data == 0) return false;
+        if (!r_.read_value(v + kLazyVecCount, n) || !sane_len(*n)) return false;
+        return true;
+    }
+
     // --- 소모품 (§4.7-B) ---
     void walk_uses(std::uintptr_t record, ItemEffects* out) {
         std::uint64_t list = 0;
         std::uint32_t n = 0;
-        if (!r_.read_value(record + kItemUseList, &list) || list == 0) return;
-        // +0x88 은 하위 u32 가 개수다(상위는 용량).
-        if (!r_.read_value(record + kItemUseCount, &n) || !sane_len(n)) return;
+        if (!read_lazy_list(record + kItemUseListPtr, &list, &n)) return;
 
         for (std::uint32_t i = 0; i < n; ++i) {
             std::uint32_t use_row = 0;
@@ -167,14 +175,9 @@ private:
     void walk_enchants(std::uintptr_t record, ItemEffects* out) {
         std::uint64_t list = 0;
         std::uint32_t n = 0;
-        if (!r_.read_value(record + kItemEnchantList, &list) || list == 0) {
-            return;
-        }
-        if (!r_.read_value(record + kItemEnchantCount, &n) || !sane_len(n)) {
-            return;
-        }
+        if (!read_lazy_list(record + kItemEnchantListPtr, &list, &n)) return;
         for (std::uint32_t i = 0; i < n; ++i) {
-            // EnchantData 는 포인터가 아니라 **통째로** 들어 있다(0x70 스트라이드).
+            // EnchantData 는 포인터가 아니라 **통째로** 들어 있다(0x80 스트라이드, 2976 0x70).
             const std::uintptr_t ed =
                 static_cast<std::uintptr_t>(list) + i * kEnchantStride;
             std::uint64_t buffs = 0;

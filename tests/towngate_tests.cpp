@@ -85,9 +85,10 @@ TEST(region_row_in_table_bounds_the_index) {
 
 TEST(region_offsets_match_the_measured_record_layout) {
     // fields.py 로 뽑은 자리. 여기가 밀리면 엉뚱한 칸을 0 으로 만든다.
-    CHECK_EQ(static_cast<int>(kRiLimitVehicleRun), 0x74);
-    CHECK_EQ(static_cast<int>(kRiIsTown), 0x75);
-    CHECK_EQ(static_cast<int>(cdtb::game::kRiStringKey), 0x08);
+    // 3392(2026-10-30) - 2976 까지 0x74 · 0x75 · 0x08.
+    CHECK_EQ(static_cast<int>(kRiLimitVehicleRun), 0x10);
+    CHECK_EQ(static_cast<int>(kRiIsTown), 0x0E);
+    CHECK_EQ(static_cast<int>(cdtb::game::kRiStringKey), 0x00);
     CHECK_EQ(static_cast<int>(cdtb::game::kListStride), 0x0C);
 }
 

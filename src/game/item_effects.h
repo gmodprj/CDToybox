@@ -114,14 +114,18 @@ inline constexpr std::size_t kEffectMgrRecords = 0x58;
 inline constexpr std::size_t kItemMgrCount = 0x30;
 inline constexpr std::size_t kItemMgrRecords = 0x58;
 
+// 3392 부터 데이터 표의 목록 칸은 벡터를 가리키는 **지연 포인터**(8바이트)다. 가리키는
+// 벡터는 {ptr +0x00, u32 개수 +0x08, u32 용량 +0x0C} - 2976 까지 레코드 안에 인라인이던 그
+// 모양이다. 포인터가 널이면 빈 목록이다(역직렬화가 플래그 바이트 0 이면 만들지 않는다).
+// 근거: specs/2026-10-30-game-update-3392.md §12.
+inline constexpr std::size_t kLazyVecData = 0x00;
+inline constexpr std::size_t kLazyVecCount = 0x08;
 // ItemInfo 레코드
-inline constexpr std::size_t kItemUseList = 0x80;    // u32 행 배열 포인터
-inline constexpr std::size_t kItemUseCount = 0x88;   // 하위 u32 가 개수(상위는 용량)
-inline constexpr std::size_t kItemEnchantList = 0x248;   // EnchantData 인라인 배열
-inline constexpr std::size_t kItemEnchantCount = 0x250;  // u32 개수
+inline constexpr std::size_t kItemUseListPtr = 0x100;      // _itemUseInfoList 지연 벡터* (u32 행) (2976 인라인 +0x80/+0x88)
+inline constexpr std::size_t kItemEnchantListPtr = 0x188;  // _enchantDataList 지연 벡터* (EnchantData 인라인) (2976 +0x248/+0x250)
 
 // ItemUseInfo 레코드(0x20) -> ItemUseData_*
-inline constexpr std::size_t kUseRecData = 0x18;
+inline constexpr std::size_t kUseRecData = 0x10;   // 3392 (2976 +0x18 - 머리가 {문자열, 키, blocked} 로 바뀌었다)
 inline constexpr std::size_t kUseDataKind = 0x18;     // u8 0x00=Skill
 inline constexpr std::size_t kUseDataContext = 0x19;  // u8 0x00 만 툴팁 줄
 inline constexpr std::size_t kUseDataPairs = 0x30;    // {u32 스킬행, u32 레벨}
@@ -130,19 +134,19 @@ inline constexpr std::uint8_t kUseKindSkill = 0x00;
 inline constexpr std::uint8_t kUseContextTooltip = 0x00;
 
 // SkillInfo: 레벨 목록(16바이트 칸 {BuffData** 배열, u32 개수, u32 채움})
-inline constexpr std::size_t kSkillLevels = 0x18;
-inline constexpr std::size_t kSkillLevelCount = 0x20;
+inline constexpr std::size_t kSkillLevels = 0x38;       // _buffLevelList (2976 +0x18)
+inline constexpr std::size_t kSkillLevelCount = 0x40;   // (2976 +0x20)
 inline constexpr std::size_t kSkillLevelStride = 0x10;
 
 // BuffInfo: 레벨 목록(16바이트 칸 {i32 레벨, u32 잔여물, BuffData*}).
 // **레벨이 음수일 수 있어 첨자로 찍지 않고 값으로 찾는다.**
-inline constexpr std::size_t kBuffLevels = 0x18;
-inline constexpr std::size_t kBuffLevelCount = 0x20;
+inline constexpr std::size_t kBuffLevels = 0x20;        // _buffDataList (2976 +0x18)
+inline constexpr std::size_t kBuffLevelCount = 0x28;    // (2976 +0x20)
 inline constexpr std::size_t kBuffLevelStride = 0x10;
 inline constexpr std::size_t kBuffLevelData = 0x08;   // 칸 안의 BuffData*
 
 // EnchantData(0x70 스트라이드, ItemInfo 안에 인라인)
-inline constexpr std::size_t kEnchantStride = 0x70;
+inline constexpr std::size_t kEnchantStride = 0x80;   // 3392 (목록 채우기가 shl 7 로 간다; 2976 0x70)
 inline constexpr std::size_t kEnchantBuffs = 0x58;       // _equipBuffs 배열
 inline constexpr std::size_t kEnchantBuffCount = 0x60;
 inline constexpr std::size_t kEnchantBuffStride = 0x20;
@@ -164,9 +168,9 @@ inline constexpr std::uint16_t kNoPatternRow = 0xFFFF;
 inline constexpr std::uint16_t kNoBuffRow = 0xFFFF;
 
 // PatternDescriptionInfo 레코드(0x60)
-inline constexpr std::size_t kPatternEntity = 0x00;     // u32 현지화 엔티티
-inline constexpr std::size_t kPatternParams = 0x48;     // 2바이트 항목 배열
-inline constexpr std::size_t kPatternParamCount = 0x50;
+inline constexpr std::size_t kPatternEntity = 0x08;     // u32 현지화 엔티티 = _key (2976 +0x00)
+inline constexpr std::size_t kPatternParams = 0x40;     // 2바이트 항목 배열 _paramList (2976 +0x48)
+inline constexpr std::size_t kPatternParamCount = 0x48; // (2976 +0x50)
 inline constexpr std::size_t kPatternParamStride = 0x02;
 // `_stringFormat` 의 현지화 필드(cat 15).
 inline constexpr std::uint32_t kPatternFormatField = 0xF0;

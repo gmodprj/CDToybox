@@ -1,5 +1,7 @@
 #pragma once
 
+// @build 1.0.0.3392  kRegionMgrGlobalRva 0x71ADB50 (2026-10-30) - 표 이름 `regioninfo` 함수 0x5C29F0 의 적재.
+//   **RegionInfo 레코드 레이아웃이 바뀌었다**(§12). 근거: specs/2026-10-30-game-update-3392.md §10 · §12
 // @build 1.0.0.2976  kRegionMgrGlobalRva -0x20 (2026-09-26) - 표 이름 `regioninfo`
 //   를 만드는 함수 0x50D700 의 적재 0x50D715. 근거: specs/2026-09-26-game-update-2976.md §10
 // @build 1.0.0.2949  kRegionMgrGlobalRva 가 그대로다(2026-09-22) - 표 이름 `regioninfo`
@@ -77,13 +79,15 @@ namespace cdtb::game {
 // 스크립트: 스크래치패드 `mgrglobals.py` (인자는 exe + 표 이름들).
 //
 // 2850: 0x06C2E2F0 (조회 0x49BB80) -> 2944: 0x06D69AD0 (조회 0x50D700). +0x13B7E0.
-inline constexpr std::uintptr_t kRegionMgrGlobalRva = 0x06D69AB0;   // 2949 0x06D69AD0
+inline constexpr std::uintptr_t kRegionMgrGlobalRva = 0x071ADB50;   // 2976 0x06D69AB0 · 2949 0x06D69AD0
 inline constexpr const char* kRegionMgrClass = "RegionInfoManager";
 
 // RegionInfo 레코드(192바이트). `tools/rtti/fields.py` 로 20개를 짝지었다.
-inline constexpr std::size_t kRiStringKey = 0x08;        // 엔진 문자열 객체 포인터
-inline constexpr std::size_t kRiLimitVehicleRun = 0x74;  // u8
-inline constexpr std::size_t kRiIsTown = 0x75;           // u8
+// 3392(2026-10-30)에서 재배치됐다 - 머리 {+0 문자열, +8 u16 키}, bool 은 +0xA 부터. 2976 까지는
+// 문자열 +0x08 · _limitVehicleRun +0x74 · _isTown +0x75 였다.
+inline constexpr std::size_t kRiStringKey = 0x00;        // 엔진 문자열 객체 포인터
+inline constexpr std::size_t kRiLimitVehicleRun = 0x10;  // u8
+inline constexpr std::size_t kRiIsTown = 0x0E;           // u8
 
 // 액터에서 내려가는 사슬. 첫 칸(char -> 컴포넌트 홀더, +0x68)은 이미
 // `reserveslot.h` 의 `kActorSub` 다 - 같은 숫자를 두 이름으로 두지 않는다.

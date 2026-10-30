@@ -1,5 +1,8 @@
 #pragma once
 
+// @build 1.0.0.3392  셋 다 재도출(2026-10-30) - 등록 0x2E06480(호출부 간격 0x9E, 프롤로그 15바이트 그대로) ·
+//   조회 전역 0x71ADB30 · vtable 0x5EE3B90. **KnowledgeInfo 레코드 레이아웃이 바뀌었다** -
+//   `_learnApplySkillInfo` +0x104 -> +0x18 등(§12). 근거: specs/2026-10-30-game-update-3392.md §6 · §12
 // @build 1.0.0.2976  셋 다 재도출(2026-09-26) - 등록 +0x70(호출부 간격 0xA8 그대로) ·
 //   전역 -0x20 · vtable +0x1F0. 2949 처럼 코드가 통째로 옮겨지지는 않았다.
 //   근거: specs/2026-09-26-game-update-2976.md §6
@@ -43,7 +46,7 @@ namespace cdtb::game {
 // **RVA 를 박아 두는 것이라 게임이 갱신되면 밀린다**(game-update-rva-drift).
 // 그래서 읽은 값이 말이 되는지, 그리고 컴포넌트의 레코드 수와 같은지 반드시 대조한다
 // (`Initialize` 가 매니저의 개수로 표를 잡으므로 두 값은 같아야 한다).
-inline constexpr std::uintptr_t kKnowMgrGlobalRva = 0x06D69A98;   // 2949 0x06D69AB8 · 2850 까지 0x06C2E2D8
+inline constexpr std::uintptr_t kKnowMgrGlobalRva = 0x071ADB30;   // 2976 0x06D69A98 · 2949 0x06D69AB8
 inline constexpr std::size_t kKnowMgrCount = 0x08;   // i32 전체 지식 수
 inline constexpr std::size_t kKnowMgrArray = 0x58;   // KnowledgeInfo* 배열(stride 8)
 
@@ -58,8 +61,8 @@ inline constexpr std::size_t kKnowRecObj = 0x08;     // 지연 생성 객체 - �
 inline constexpr std::size_t kKnowRecFlag = 0x10;    // u8, 게임도 1 을 쓴다
 
 // KnowledgeInfo / KnowledgeLevelData / learnFrom
-inline constexpr std::size_t kInfoLevels = 0x88;        // KnowledgeLevelData 배열
-inline constexpr std::size_t kInfoLevelCount = 0x90;    // i32
+inline constexpr std::size_t kInfoLevels = 0x98;        // _knowledgeLevelDataList 배열 (3392; 2976 +0x88)
+inline constexpr std::size_t kInfoLevelCount = 0xA0;    // i32 (2976 +0x90)
 inline constexpr std::size_t kLevelStride = 0xE8;
 // `_knowledgeName` 은 단일 키가 아니라 **{포인터, u64 키, u32 분류}** 구조체다.
 // 필드는 +0xA8 에서 시작하지만 **키는 그 안쪽 +8**, 즉 절대 +0xB0 이다.
@@ -204,8 +207,8 @@ KnowWrite know_forget(const mem::Reader& reader, int number);
 // 2944(0x02AA6450 / 0x02AA64F8)와 같은 0xA8 이다. 대상 0x2B72C90 의 첫 15바이트가 위
 // 프롤로그 그대로다. vtable 은 RTTI 로 0x5B2B880 이고, 2949 실행 로그도
 // `지식 컴포넌트 … vtable 0x145B2B880` 을 찍었다.
-inline constexpr std::uintptr_t kKnowRegisterRva = 0x02B72D00;       // 2949 0x02B72C90 · 2944 0x02AA55D0
-inline constexpr std::uintptr_t kServerCompVtableRva = 0x05B2BA70;   // 2949 0x05B2B880 · 2944 0x05A13200
+inline constexpr std::uintptr_t kKnowRegisterRva = 0x02E06480;       // 2976 0x02B72D00 · 2949 0x02B72C90
+inline constexpr std::uintptr_t kServerCompVtableRva = 0x05EE3B90;   // 2976 0x05B2BA70 · 2949 0x05B2B880
 
 // 등록 함수의 첫 15바이트(위 세 명령). **부르기 전에 이것을 대조한다.** 이 호출은
 // 게임 함수를 직접 부르므로, 갱신으로 자리가 낡으면 명령 중간으로 뛰어들어 죽는다 -
@@ -225,11 +228,11 @@ inline bool know_register_prologue_ok(const std::uint8_t* p, std::size_t n) {
     return true;
 }
 inline constexpr std::size_t kKnowMapCount = 0xF4;      // u32 맵 원소 수
-inline constexpr std::size_t kInfoApplySkill = 0x104;   // u16, 0xFFFF = 붙을 스킬 없음
+inline constexpr std::size_t kInfoApplySkill = 0x18;    // u16, 0xFFFF = 붙을 스킬 없음 (3392; 2976 +0x104 - 게임 호출부가 `cmp word [rax+0x18], cx`)
 inline constexpr std::uint16_t kNoApplySkill = 0xFFFF;
 // `KnowledgeInfo +0x08` = 내부 이름 문자열 객체 포인터("Knowledge_Hp" …).
 // 원소 넷을 이름으로 찾을 때 확인한 자리다(STATUS §1.20).
-inline constexpr std::size_t kInfoInternalName = 0x08;
+inline constexpr std::size_t kInfoInternalName = 0x00;   // 3392 (2976 +0x08 - 머리가 {문자열, 키} 로 뒤바뀌었다)
 
 struct KnowRegister {
     bool ok = false;
@@ -329,7 +332,7 @@ inline constexpr int kKnowMapMaxCount = 1 << 16;       // 말이 안 되는 개�
 inline constexpr std::size_t kSkillEntryKnowKey = 0x04;
 inline constexpr std::size_t kSkillEntrySkillKey = 0x08;
 inline constexpr std::size_t kSkillEntryLevel = 0x0C;
-inline constexpr std::size_t kInfoDataKey = 0x00;      // KnowledgeInfo._key
+inline constexpr std::size_t kInfoDataKey = 0x08;      // KnowledgeInfo._key (3392; 2976 +0x00)
 
 struct KnowSkillSlot {
     int know_key = 0;

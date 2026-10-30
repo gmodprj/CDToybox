@@ -1,5 +1,6 @@
 #pragma once
 
+// @build 1.0.0.3392  제한 컴포넌트 vtable 0x55B5460 -> 0x5934850 (RTTI, 2026-10-30). 근거: specs/2026-10-30-game-update-3392.md §10
 // @build 1.0.0.2976  제한 컴포넌트 vtable +0x98 -> 0x55B5460 (RTTI, 2026-09-26).
 //   근거: specs/2026-09-26-game-update-2976.md §10
 // @build 1.0.0.2949  제한 컴포넌트 vtable 0x55B53C8 - RTTI(ClientCharacterControlActor
@@ -49,7 +50,7 @@ namespace cdtb::game {
 
 inline constexpr std::size_t kActorHolderOff = 0x68;
 inline constexpr std::size_t kHolderCtlOff = 0x40;
-inline constexpr std::uint64_t kCtlVtRva = 0x55B5460;     // ClientCharacterControlActorComponent
+inline constexpr std::uint64_t kCtlVtRva = 0x5934850;     // ClientCharacterControlActorComponent (2976 0x55B5460)
 inline constexpr std::size_t kCtlLimitOff = 0x120;
 inline constexpr std::size_t kLimitArrayOff = 0xD8;
 inline constexpr std::size_t kLimitCountOff = 0xE0;
