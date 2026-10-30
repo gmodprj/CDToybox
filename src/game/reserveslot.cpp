@@ -1,3 +1,5 @@
+// @build 1.0.0.3392  kGpvMgrGlobalRva 0x71B2BF8 (2026-10-30, **정적으로** - 조회 함수가 `GamePlayVariableInfo`
+//   문자열을 든다) · 조건 이름 표 0x5CEEC10 x502(DLC 가 34개 더했다).
 // @build 1.0.0.2976  kGpvMgrGlobalRva -0x18 (2026-09-26, 실행 중 인스턴스를 담은 칸).
 //   **kCondNameTableRva 를 2850 이후 처음 다시 짚었다** - 0x5955150, 468개
 //   (`GetLevel` 로 시작하는 char* 열). kEmptyStrRva 는 여전히 미도출.
@@ -120,7 +122,7 @@ void dump_slot_info(const mem::Reader& r, const Mgr& cond, std::uintptr_t info,
         log::warnf("  {}: ReserveSlotInfo 가 없다", label);
         return;
     }
-    log::infof("  {} flags +0xAC..AF: {} {} {} {} · fill 0x{:X} x{} ·"
+    log::infof("  {} bool +0x0D..10: {} {} {} {} · fill 0x{:X} x{} ·"
                " target 0x{:X} x{}",
                label, rd8(r, info + kRsFlags), rd8(r, info + kRsFlags + 1),
                rd8(r, info + kRsFlags + 2), rd8(r, info + kRsFlags + 3),
@@ -148,7 +150,7 @@ void dump_slot_info(const mem::Reader& r, const Mgr& cond, std::uintptr_t info,
         log::infof("      cond 0x{:X}: blocked {} · gameCondition 0x{:X} ·"
                    " parser 0x{:X}",
                    ci, rd8(r, ci + kCiBlocked), rd64(r, ci + kCiCondition),
-                   rd32(r, ci + kCiParser));
+                   rd8(r, ci + kCiParser));
         dump_raw(r, ci, 0x60, "ConditionInfo 전체");
     }
 }
@@ -247,10 +249,10 @@ void reserveslot_diagnose(const mem::Reader& reader,
 
 namespace {
 
-inline constexpr std::uintptr_t kCondNameTableRva = 0x5955150;   // char* x468 (2949 까지 0x0584FA10)
-inline constexpr int kCondNameCount = 468;
+inline constexpr std::uintptr_t kCondNameTableRva = 0x5CEEC10;   // char* x502 (2976 0x5955150 x468 · 2949 까지 0x0584FA10)
+inline constexpr int kCondNameCount = 502;   // 첨자 501 IsEnteredManagementOpened 까지 (2976 468)
 inline constexpr std::uintptr_t kEmptyStrRva = 0x0692E4C0;
-inline constexpr std::uintptr_t kGpvMgrGlobalRva = 0x06D6E400;   // 2949 0x06D6E418 · 2850 까지 0x06C32880
+inline constexpr std::uintptr_t kGpvMgrGlobalRva = 0x071B2BF8;   // 2976 0x06D6E400 · 2949 0x06D6E418
 inline constexpr std::size_t kGpvComp = 0x168;   // [액터+0x68] + 0x168
 
 // 문자열 객체 하나를 읽는다. `p` 는 **객체 포인터가 든 자리**가 아니라 객체 자체다.
@@ -935,9 +937,10 @@ VehBak g_dis_vbak[kDisguiseMax];
 int g_dis_vbak_n = 0;
 
 // 호출 지형 요구를 푼 자국. 목록 포인터와 용량은 그대로 두고 개수만 0 으로
-// 둔다 - 되돌릴 때 개수만 쓰면 원래 목록이 그대로 살아난다.
+// 둔다 - 되돌릴 때 개수만 쓰면 원래 목록이 그대로 살아난다. 3392 부터 개수 칸은
+// 레코드 밖(지연 벡터 +8)이라 **그 칸의 주소**를 들고 있는다.
 struct VoxBak {
-    std::uintptr_t rec = 0;
+    std::uintptr_t cell = 0;   // 개수 u32 가 사는 자리
     std::uint32_t count = 0;
 };
 VoxBak g_dis_xbak[kDisguiseMax];
@@ -1174,12 +1177,15 @@ bool disguise_apply(const mem::Reader& reader, bool on) {
         // **호출 지형 요구를 푼다.** 여기가 "호출할 수 없는 위치입니다" 의 진짜
         // 출처다 - A.T.A.G. 는 요구가 0개라 그대로 됐고(사용자 실측 2026-09-15
         // 17:46), 드래곤은 1개(복셀 3)만 허용해 거부됐다. 개수만 0 으로 둔다.
-        const std::uint32_t vx = rd32(reader, rec + kCiSpawnVoxelCount);
-        if (spawn_voxel_gated(vx) && g_dis_xbak_n < kDisguiseMax) {
+        // 3392 부터 목록이 지연 벡터다 - 포인터가 널이면 요구가 없는 것이다.
+        const std::uintptr_t vlist =
+            static_cast<std::uintptr_t>(rd64(reader, rec + kCiSpawnVoxelList));
+        const std::uintptr_t vcell = vlist == 0 ? 0 : vlist + kVoxListCount;
+        const std::uint32_t vx = vcell == 0 ? 0 : rd32(reader, vcell);
+        if (vcell != 0 && spawn_voxel_gated(vx) && g_dis_xbak_n < kDisguiseMax) {
             const std::uint32_t none = 0;
-            if (mem::safe_write_bytes(rec + kCiSpawnVoxelCount, &none,
-                                      sizeof none)) {
-                g_dis_xbak[g_dis_xbak_n] = VoxBak{rec, vx};
+            if (mem::safe_write_bytes(vcell, &none, sizeof none)) {
+                g_dis_xbak[g_dis_xbak_n] = VoxBak{vcell, vx};
                 ++g_dis_xbak_n;
                 log::infof("휠 칸 바꾸기: 종행 {} 호출 지형 요구 {}개 -> 0",
                            p.row[i], vx);
@@ -1295,9 +1301,8 @@ void disguise_teardown() {
     int xback = 0;
     for (int i = 0; i < g_dis_xbak_n; ++i) {
         const VoxBak& b = g_dis_xbak[i];
-        if (b.rec == 0) continue;
-        if (mem::safe_write_bytes(b.rec + kCiSpawnVoxelCount, &b.count,
-                                  sizeof b.count)) {
+        if (b.cell == 0) continue;
+        if (mem::safe_write_bytes(b.cell, &b.count, sizeof b.count)) {
             ++xback;
         }
     }

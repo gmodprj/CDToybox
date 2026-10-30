@@ -10,11 +10,11 @@ using cdtb::game::decode_message_header;
 using cdtb::game::hex_bytes;
 
 TEST(companion_header_decodes_id_and_body_len) {
-    // [ID 2959 = 0x0B8F LE][u8][본문길이 5 LE]  (2850 까지 2338 = 0x0922)
-    const std::uint8_t p[] = {0x8F, 0x0B, 0x00, 0x05, 0x00};
+    // [ID 2659 = 0x0A63 LE][u8][본문길이 5 LE]  (2976 까지 2959 = 0x0B8F · 2850 까지 2338 = 0x0922)
+    const std::uint8_t p[] = {0x63, 0x0A, 0x00, 0x05, 0x00};
     std::uint16_t id = 0, body = 0;
     CHECK(decode_message_header(p, sizeof(p), &id, &body));
-    CHECK_EQ(id, static_cast<std::uint16_t>(2959));
+    CHECK_EQ(id, static_cast<std::uint16_t>(2659));
     CHECK_EQ(body, static_cast<std::uint16_t>(5));
     CHECK(!decode_message_header(p, 4, &id, &body));
     CHECK(!decode_message_header(nullptr, 5, &id, &body));
@@ -22,7 +22,7 @@ TEST(companion_header_decodes_id_and_body_len) {
 
 TEST(companion_hire_to_target_decodes_handle_and_flag) {
     // 머리 5 + 본문 5: 핸들 0x2000012C, 플래그 1
-    const std::uint8_t p[] = {0x8F, 0x0B, 0x00, 0x05, 0x00,
+    const std::uint8_t p[] = {0x63, 0x0A, 0x00, 0x05, 0x00,
                               0x2C, 0x01, 0x00, 0x20, 0x01};
     std::uint32_t handle = 0;
     std::uint8_t flag = 0;
@@ -56,9 +56,9 @@ TEST(companion_use_item_wire_layout) {
     std::size_t len = 0;
     CHECK(build_use_item_wire(1003843, 0, 0x0D, 0, w, sizeof(w), &len));
     CHECK_EQ(len, static_cast<std::size_t>(18));
-    // 머리: ID 2269 = 0x08DD, 본문길이 13  (2850 까지 2976 = 0x0BA0)
-    CHECK_EQ(w[0], static_cast<std::uint8_t>(0xDD));
-    CHECK_EQ(w[1], static_cast<std::uint8_t>(0x08));
+    // 머리: ID 2559 = 0x09FF, 본문길이 13  (2976 까지 2269 = 0x08DD · 2850 까지 2976 = 0x0BA0)
+    CHECK_EQ(w[0], static_cast<std::uint8_t>(0xFF));
+    CHECK_EQ(w[1], static_cast<std::uint8_t>(0x09));
     CHECK_EQ(w[2], static_cast<std::uint8_t>(0));
     CHECK_EQ(w[3], static_cast<std::uint8_t>(13));
     CHECK_EQ(w[4], static_cast<std::uint8_t>(0));
@@ -70,7 +70,7 @@ TEST(companion_use_item_wire_layout) {
     CHECK_EQ(w[13], static_cast<std::uint8_t>(0x0D));
     std::uint16_t id = 0, body = 0;
     CHECK(cdtb::game::decode_message_header(w, len, &id, &body));
-    CHECK_EQ(id, static_cast<std::uint16_t>(2269));
+    CHECK_EQ(id, static_cast<std::uint16_t>(2559));
     CHECK_EQ(body, static_cast<std::uint16_t>(13));
     // 버퍼가 작으면 거부
     CHECK(!build_use_item_wire(1, 0, 0x0D, 0, w, 10, &len));
@@ -107,9 +107,9 @@ TEST(companion_hire_wire_layout) {
     std::size_t len = 0;
     CHECK(build_hire_wire(0xB0100153, 0, w, sizeof(w), &len));
     CHECK_EQ(len, static_cast<std::size_t>(10));
-    // 머리: ID 2959 = 0x0B8F, 본문길이 5  (2850 까지 2338 = 0x0922)
-    CHECK_EQ(w[0], static_cast<std::uint8_t>(0x8F));
-    CHECK_EQ(w[1], static_cast<std::uint8_t>(0x0B));
+    // 머리: ID 2659 = 0x0A63, 본문길이 5  (2976 까지 2959 = 0x0B8F · 2850 까지 2338 = 0x0922)
+    CHECK_EQ(w[0], static_cast<std::uint8_t>(0x63));
+    CHECK_EQ(w[1], static_cast<std::uint8_t>(0x0A));
     CHECK_EQ(w[3], static_cast<std::uint8_t>(5));
     // 본문: 핸들 LE + 플래그
     CHECK_EQ(w[5], static_cast<std::uint8_t>(0x53));
@@ -119,8 +119,8 @@ TEST(companion_hire_wire_layout) {
     CHECK_EQ(w[9], static_cast<std::uint8_t>(0));
     std::uint16_t id = 0, body = 0;
     CHECK(cdtb::game::decode_message_header(w, len, &id, &body));
-    CHECK_EQ(id, static_cast<std::uint16_t>(2959));
-    // 실측한 진돗개 획득 와이어와 바이트가 같아야 한다(ID 만 2944 값으로 옮겼다)
+    CHECK_EQ(id, static_cast<std::uint16_t>(2659));
+    // 실측한 진돗개 획득 와이어와 바이트가 같아야 한다(ID 만 현 빌드 값으로 옮겼다)
     std::uint32_t handle = 0;
     std::uint8_t flag = 0;
     CHECK(cdtb::game::decode_hire_to_target(w, len, &handle, &flag));
@@ -140,7 +140,7 @@ TEST(complete_summon_wire_is_number_then_position) {
     CHECK_EQ(len, static_cast<std::size_t>(25));
     std::uint16_t id = 0, body = 0;
     cdtb::game::decode_message_header(wire, len, &id, &body);
-    CHECK_EQ(id, static_cast<std::uint16_t>(2244));
+    CHECK_EQ(id, static_cast<std::uint16_t>(2843));   // 2976 까지 2244
     CHECK_EQ(body, static_cast<std::uint16_t>(20));
     std::uint64_t no = 0;
     std::memcpy(&no, wire + 5, sizeof(no));
@@ -211,9 +211,9 @@ TEST(catch_decode_rejects_a_wrong_length) {
 }
 
 TEST(catch_decode_rejects_another_message_id) {
-    // 획득(2959) 와이어를 붙잡기로 읽으면 안 된다.
+    // 획득(2659) 와이어를 붙잡기로 읽으면 안 된다.
     std::uint8_t other[13]{};
-    const std::uint16_t id = 2959, body = 8;
+    const std::uint16_t id = 2659, body = 8;
     std::memcpy(other, &id, 2);
     std::memcpy(other + 3, &body, 2);
     std::uint32_t self = 0, target = 0;
@@ -231,8 +231,8 @@ TEST(hire_inv_wire_round_trips) {
     std::size_t len = 0;
     CHECK(cdtb::game::build_hire_inv_wire(18578, 7, wire, sizeof(wire), &len));
     CHECK_EQ(len, cdtb::game::kHireInvWireLen);
-    // 머리: ID 3021 = 0x0BCD, 본문길이 4  (2850 까지 2454 = 0x0996)
-    CHECK_EQ(wire[0], 0xCD);
+    // 머리: ID 2975 = 0x0B9F, 본문길이 4  (2976 까지 3021 = 0x0BCD · 2850 까지 2454 = 0x0996)
+    CHECK_EQ(wire[0], 0x9F);
     CHECK_EQ(wire[1], 0x0B);
     CHECK_EQ(wire[2], 0x00);
     CHECK_EQ(wire[3], 0x04);

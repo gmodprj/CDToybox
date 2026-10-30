@@ -1,5 +1,7 @@
 #pragma once
 
+// @build 1.0.0.3392  kCondMgrGlobalRva 0x71AEC10 · kSlotMgrGlobalRva 0x71ADB60 (2026-10-30, 둘 다 정적 - 표 이름
+//   앵커 / 기본 레코드를 읽는 조회 함수). 근거: specs/2026-10-30-game-update-3392.md §10
 // @build 1.0.0.2976  kCondMgrGlobalRva -0x18 · kSlotMgrGlobalRva -0x20 (2026-09-26).
 //   앞은 표 이름 앵커로, 뒤는 실행 중 인스턴스를 담은 칸으로 짚었다(칸 1곳뿐).
 //   근거: specs/2026-09-26-game-update-2976.md §10
@@ -42,32 +44,33 @@ namespace cdtb::game {
 // 함수를 불러 죽었던 전례가 있다(TROUBLESHOOTING 1.8/1.13).
 
 // 두 매니저는 배치가 같다.
-inline constexpr std::uintptr_t kSlotMgrGlobalRva = 0x06D69AC0;   // 2949 0x06D69AE0 · 2850 까지 0x06C2E300
-inline constexpr std::uintptr_t kCondMgrGlobalRva = 0x06D6AA20;   // 2949 0x06D6AA38 · 2850 까지 0x06C2F260
+inline constexpr std::uintptr_t kSlotMgrGlobalRva = 0x071ADB60;   // 2976 0x06D69AC0 · 2949 0x06D69AE0
+inline constexpr std::uintptr_t kCondMgrGlobalRva = 0x071AEC10;   // 2976 0x06D6AA20 · 2949 0x06D6AA38
 inline constexpr std::size_t kMgrCount = 0x08;
 inline constexpr std::size_t kMgrArray = 0x58;
 inline constexpr std::size_t kMgrWellKnown = 0xA0;   // u16 여덟
 inline constexpr int kWellKnownCount = 8;
 inline constexpr int kElemSlotIndex = 5;             // +0xAA = ElementalSelectSlot
 
-// ReserveSlotInfo
-inline constexpr std::size_t kRsKey = 0x00;
-inline constexpr std::size_t kRsBlocked = 0x10;
-inline constexpr std::size_t kRsFillData = 0x28;
+// ReserveSlotInfo - 3392(2026-10-30, fields.py)에서 재배치됐다. 2976 까지의 자리는 뒤에.
+// 머리 {+0 문자열 객체*, +8 u32 키, +0xC 부터 bool 일곱}. 목록은 인라인 벡터 그대로다.
+inline constexpr std::size_t kRsKey = 0x08;          // (2976 +0x00)
+inline constexpr std::size_t kRsBlocked = 0x0C;      // (2976 +0x10)
+inline constexpr std::size_t kRsFillData = 0x28;     // _fillDataList {ptr +0x28, 개수 +0x30} (그대로)
 inline constexpr std::size_t kRsFillCount = 0x30;
-inline constexpr std::size_t kRsType = 0x40;
-inline constexpr std::size_t kRsUsingType = 0x41;
-inline constexpr std::size_t kRsNameHash = 0x68;     // {u16 SpecialName, u16 조건키}
-inline constexpr std::size_t kRsNameHashCount = 0x70;
-inline constexpr std::size_t kRsTargetList = 0x98;
-inline constexpr std::size_t kRsTargetCount = 0xA0;  // 추측
-inline constexpr std::size_t kRsFlags = 0xAC;        // 4바이트
+inline constexpr std::size_t kRsType = 0x12;         // _reserveSlotType (2976 +0x40)
+inline constexpr std::size_t kRsUsingType = 0x11;    // _usingType (2976 +0x41)
+inline constexpr std::size_t kRsNameHash = 0x60;     // _enableSpecialNameHashList {u16 SpecialName, u16 조건키} (2976 +0x68)
+inline constexpr std::size_t kRsNameHashCount = 0x68;  // (2976 +0x70)
+inline constexpr std::size_t kRsTargetList = 0x90;   // _reserveSlotTargetList (2976 +0x98)
+inline constexpr std::size_t kRsTargetCount = 0x98;  // (2976 +0xA0)
+inline constexpr std::size_t kRsFlags = 0x0D;        // bool 넷 _isSelfPlayerOnly·_isShared·_autoChangeOnEmpty·_restoreOnRetry (2976 +0xAC..AF)
 
-// ConditionInfo
-inline constexpr std::size_t kCiBlocked = 0x10;
-inline constexpr std::size_t kCiCondition = 0x18;
-inline constexpr std::size_t kCiOriginal = 0x28;
-inline constexpr std::size_t kCiParser = 0x30;
+// ConditionInfo (3392 재배치 - 2976 까지는 +0x10 · +0x18 · +0x28 · +0x30)
+inline constexpr std::size_t kCiBlocked = 0x0C;
+inline constexpr std::size_t kCiCondition = 0x10;    // _gameCondition
+inline constexpr std::size_t kCiOriginal = 0x20;     // _originalString
+inline constexpr std::size_t kCiParser = 0x0D;       // _parserType (u8)
 
 // EquipSlotActorComponent
 inline constexpr std::size_t kActorSub = 0x68;
@@ -181,9 +184,9 @@ inline constexpr int kVehSlotKey = 1000006;
 inline constexpr int kMechSlotKey = 1000019;
 inline constexpr int kDragonSlotKey = 1000020;
 
-inline constexpr std::size_t kRsMercList = 0x58;   // _enableMercenaryList
-inline constexpr std::size_t kRsMercCount = 0x60;
-inline constexpr std::size_t kRsMercCap = 0x64;
+inline constexpr std::size_t kRsMercList = 0x50;   // _enableMercenaryList (3392; 2976 +0x58)
+inline constexpr std::size_t kRsMercCount = 0x58;  // (2976 +0x60)
+inline constexpr std::size_t kRsMercCap = 0x5C;    // (2976 +0x64)
 
 inline constexpr int kWheelMaxCats = 16;
 
@@ -228,9 +231,11 @@ void wheel_teardown();
 //
 // 두 값은 `CharacterInfo` 의 정적 필드다(우리 빌드 `fields.py` 로 확정):
 //
-//   +0x6E u16 _vehicleInfo                0 이 아니면 탈것
-//   +0x70 u64 _callMercenaryCoolTime      재소환 쿨다운(초).  드래곤 3600
-//   +0x78 u64 _callMercenarySpawnDuration 강제 하차까지(초).  드래곤 600
+//   +0xA0  u16 _vehicleInfo                0 이 아니면 탈것         (2976 까지 +0x6E)
+//   +0x158 u64 _callMercenaryCoolTime      재소환 쿨다운(초).  드래곤 3600  (2976 +0x70)
+//   +0x160 u64 _callMercenarySpawnDuration 강제 하차까지(초).  드래곤 600   (2976 +0x78)
+//
+// (3392, 2026-10-30: CharacterInfo 가 통째로 재배치됐다 - `fields.py` 로 다시 짚었다.)
 //
 // 게임 데이터에서 읽은 값과 같고(`Riding_Dragon_1` 600/3600), 참고 모드
 // (Nexus 356)가 고치는 것이 정확히 이 둘이다.
@@ -241,10 +246,10 @@ void wheel_teardown();
 // 상류의 MAX 프리셋과 같은 값).
 //
 // 정적 표라 세이브에 안 남는다. 게임을 끄면 원복된다.
-inline constexpr std::size_t kCiVehicleInfo = 0x6E;
-inline constexpr std::size_t kCiMercInfo = 0xBE;   // _mercenaryInfo (동반자 타입 행)
-inline constexpr std::size_t kCiCoolTime = 0x70;
-inline constexpr std::size_t kCiSpawnDuration = 0x78;
+inline constexpr std::size_t kCiVehicleInfo = 0xA0;    // (2976 +0x6E)
+inline constexpr std::size_t kCiMercInfo = 0xA6;       // _mercenaryInfo (동반자 타입 행) (2976 +0xBE)
+inline constexpr std::size_t kCiCoolTime = 0x158;      // (2976 +0x70)
+inline constexpr std::size_t kCiSpawnDuration = 0x160; // (2976 +0x78)
 inline constexpr std::uint64_t kCoolTimeFree = 1;
 inline constexpr std::uint64_t kDurationFree = 244800;  // 68시간
 inline constexpr int kMountPatchMax = 512;
@@ -285,8 +290,8 @@ void mount_timer_teardown();
 // 가리킨다 - 드래곤 3 · 와이번 4.
 //
 // 정적 표라 **세이브에 안 남고** 게임을 끄면 원복된다.
-inline constexpr std::size_t kViGroundDist = 0x8C;   // float
-inline constexpr std::size_t kViMaxHeight = 0x9C;    // float _maxAllowableHeight
+inline constexpr std::size_t kViGroundDist = 0x34;   // float _checkDistanceToGround (3392; 2976 +0x8C)
+inline constexpr std::size_t kViMaxHeight = 0x3C;    // float _maxAllowableHeight (2976 +0x9C)
 // `_escapeRoadGroupType`(+0x70). 탈것을 놓을 자리를 고를 때 쓰는 "탈출로" 그룹.
 //
 // **되는 둘과 안 되는 하나가 여기서 갈렸다** (실측 2026-09-15):
@@ -296,7 +301,7 @@ inline constexpr std::size_t kViMaxHeight = 0x9C;    // float _maxAllowableHeigh
 //
 // 호출 지형 요구(CharacterInfo +0x450)와 지면 거리(+0x8C)를 둘 다 0 으로 만든
 // 뒤에도 드래곤만 막혔고, 그때 장소 관련 칸 중 남아 있던 유일한 깨끗한 차이다.
-inline constexpr std::size_t kViEscapeRoad = 0x70;   // u8
+inline constexpr std::size_t kViEscapeRoad = 0x15;   // u8 _escapeRoadGroupType (3392; 2976 +0x70)
 inline constexpr int kVehiclePatchMax = 64;
 
 // **순수 함수.** 탈출로 그룹을 기증자 값으로 맞춰야 하는가.
@@ -394,7 +399,10 @@ inline constexpr std::uint16_t kInfoNone = 0xFFFF;   // 표에서 "없음"
 // 즉 드래곤만 복셀 3 을 요구하고, 와이번은 3·4 를 받는다. 그래서 같은 자리에서
 // 와이번은 되고 드래곤은 거부된다 - 사용자가 "장소를 바꿔도 안 된다" 던 이유다.
 // 개수만 0 으로 두면 A.T.A.G. 와 같은 상태가 된다. 목록과 용량은 안 건드린다.
-inline constexpr std::size_t kCiSpawnVoxelCount = 0x450;   // u32
+// 3392 부터 `_callMercenarySpawnVoxelType` 은 지연 벡터 포인터(+0x360)다 - 개수는 그 벡터의
+// +8 (u32). 포인터가 널이면 요구가 없는 것이다. (2976 까지 인라인 개수 +0x450.)
+inline constexpr std::size_t kCiSpawnVoxelList = 0x360;
+inline constexpr std::size_t kVoxListCount = 0x08;
 
 // **순수 함수.** 이 종의 호출 지형 요구를 풀어야 하는가.
 bool spawn_voxel_gated(std::uint32_t count);

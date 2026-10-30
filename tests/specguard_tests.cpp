@@ -110,17 +110,18 @@ TEST(specguard_tail_rejects_truncated_and_accepts_immediates) {
 // 흘러가 거기서 죽는다 - 크래시를 89바이트 뒤로 옮길 뿐이다(실측 2026-09-20).
 // 2949 에서는 0xF2FD66B · 0xF2FD6C3 으로, 같은 함수(0xF2FD5E0..0xF2FD738) 안이었다.
 // 2976 에서는 0xF490EAB · 0xF490EFD 으로, 같은 함수(0xF490E20..0xF490F72) 안이고
-// 쌍둥이 간격은 0x52 다(2949 는 0x58).
+// 쌍둥이 간격은 0x52 다(2949 는 0x58). 3392(2026-10-30, DLC)에서는 0xDA7C779 · 0xDA7C7D2 로,
+// 같은 함수(0xDA7C6F0..0xDA7C85A) 안이고 간격은 0x59 다.
 TEST(specguard_reg_table_has_both_divs_of_the_bag_render_function) {
-    CHECK(has_site(kSpecguardDivReg, 0xF490EABULL, 6));
-    CHECK(has_site(kSpecguardDivReg, 0xF490EFDULL, 6));
+    CHECK(has_site(kSpecguardDivReg, 0xDA7C779ULL, 6));
+    CHECK(has_site(kSpecguardDivReg, 0xDA7C7D2ULL, 6));
 }
 
-// 2976 실측 자리 둘(kDivReg)과 하나(kDivMem[3])도 있어야 한다(2949 에서 각 +0x50).
-TEST(specguard_table_keeps_the_2976_measured_sites) {
-    CHECK(has_site(kSpecguardDivReg, 0x24091FBULL, 5));
-    CHECK(has_site(kSpecguardDivReg, 0x2409614ULL, 6));
-    CHECK(has_site(kSpecguardDivMem, 0x24093DDULL, 6));
+// 3392 실측 자리 둘(kDivReg)과 하나(kDivMem[3])도 있어야 한다(2976: 0x24091FB · 0x2409614 · 0x24093DD).
+TEST(specguard_table_keeps_the_3392_measured_sites) {
+    CHECK(has_site(kSpecguardDivReg, 0x25F3F3BULL, 5));
+    CHECK(has_site(kSpecguardDivReg, 0x25F4334ULL, 6));
+    CHECK(has_site(kSpecguardDivMem, 0x25F4105ULL, 6));
 }
 
 // 2850 값으로 남겨 둔 셋은 **지우지 않는다.** install 이 opcode 를 보고

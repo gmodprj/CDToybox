@@ -74,14 +74,14 @@ inline constexpr std::size_t kEquipTypeMgrRecords = 0x58;
 
 // EquipTypeInfo 레코드의 `_equipAbleHashList` 벡터 {ptr, u32 개수, u32 용량}.
 // 항목은 **u32 해시**(스트라이드 4).
-inline constexpr std::size_t kEquipAbleHashList = 0x48;    // 포인터
-inline constexpr std::size_t kEquipAbleHashCount = 0x50;   // u32 개수
+inline constexpr std::size_t kEquipAbleHashList = 0x40;    // 포인터 (3392; 2976 +0x48)
+inline constexpr std::size_t kEquipAbleHashCount = 0x48;   // u32 개수 (2976 +0x50)
 inline constexpr std::size_t kEquipAbleHashStride = 0x04;  // 항목 = u32 해시
 
 // `_equipTypeName`(+0x58 LocalString 객체)의 **완성된 현지화 키**. 실측
 // (명세 §4.7-F): 레코드 +0x60 에 이미 `(엔티티 << 32) | 0x2E0` 값이 들어
 // 있어 `loc_key` 로 다시 조립할 필요가 없다.
-inline constexpr std::size_t kEquipTypeNameKey = 0x60;
+inline constexpr std::size_t kEquipTypeNameKey = 0x58;   // _equipTypeName(+0x50) 객체의 키 칸 (3392; 2976 +0x60)
 
 // 위 키가 가리키는 현지화 필드(cat 46, 117개 = 표 행 수). 코드는 완성된 키를
 // 그대로 읽으므로 이 값을 조합하는 데 쓰지는 않는다 - 근거를 남겨 두는 문서용.

@@ -7,6 +7,7 @@
 
 #include "fake_memory.h"
 #include "game/effect_format.h"
+#include "game/knowledge.h"
 #include "game/localization.h"
 #include "game/stat_names.h"
 #include "harness.h"
@@ -133,7 +134,7 @@ struct Fixture {
             mem.put_u32(index + i * 8 + 0, key);
             const std::size_t rec = records + i * kRecStride;
             mem.put_u64(ptrs + i * 8, mem.heap_addr(rec));
-            mem.put_u32(rec + 0x00, key);
+            mem.put_u32(rec + 0x08, key);   // 3392: 키는 +0x08 (문자열 객체가 +0x00)
             mem.put_u16(rec + know_row_off, rows[i].know_row);
             const std::size_t slot = str_slot_base + i;
             const std::size_t obj = kStatStrObjs + slot * kStrStride;
@@ -152,7 +153,8 @@ struct Fixture {
             const std::size_t rec = kKnowRecords + i * kKnowRecStride;
             mem.put_u64(kKnowPtrs + kKnow[i].row * 8, mem.heap_addr(rec));
             const std::size_t obj = kKnowStrObjs + i * kStrStride;
-            mem.put_u64(rec + 0x08, mem.heap_addr(obj));
+            // 3392: 내부 이름 문자열 객체는 레코드 +0x00 (2976 까지 +0x08).
+            mem.put_u64(rec + cdtb::game::kInfoInternalName, mem.heap_addr(obj));
             put_engine_string(obj, kKnowStrChars + i * kStrStride,
                               kKnow[i].internal, kKnow[i].hash);
         }

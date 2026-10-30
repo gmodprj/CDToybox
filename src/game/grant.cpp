@@ -1,3 +1,7 @@
+// @build 1.0.0.3392  AOB 셋 재도출(2026-10-30) - 액터 조회(레지스터 배정 바뀜) · 작업 디스패처([rcx+0x78] ->
+//   [rcx+0x80]) · 작업 실행 래퍼([rcx+0x70] -> [rcx+0x78]). 구동 자리 후보 0x2D5785D(vt[13] 메서드
+//   +0x10D, 2949·2976 과 같은 오프셋)는 **게임 확인 전이라 안 넣었다** - ini drive_sites.
+//   근거: specs/2026-10-30-game-update-3392.md §4
 // @build 1.0.0.2976  **kGoodDriveSites 에 2976 자리를 아직 안 넣었다.** 정적으로는
 //   0x2AD10DD(vtable[13] = 0x2AD0FD0 의 +0x10D, 2949 와 같은 자리)인데, 이 표에는
 //   게임에서 성공 경로 줄로 확인한 뒤에 넣는다. 그때까지는 ini `drive_sites`
@@ -36,16 +40,26 @@ namespace {
 
 // 함수 앞머리 그대로다. 주소를 박아 두면 패치마다 밀리므로 바이트로
 // 찾는다. 둘 다 349MB 이미지 안에서 유일한 것을 확인했다.
+// 1.0.0.3392(2026-10-30): 머리 13바이트는 같은데 뒤 레지스터가 바뀌었다(`mov rcx,[rax+0x20];
+// movzx eax,word [rcx+..]` -> `mov rdx,[rax+0x20]; movzx edx,word [rdx+0x30]`). 13바이트만으로는
+// 6곳, 아래 21바이트로 1곳(0x22E8C70, 115바이트). ServerEquipSlotActorComponent vt[13] 메서드가
+// +0x108 · +0x182 에서 부르는 그 함수다.
+// (2976 까지: 40 53 48 83 EC 20 48 8B 41 68 48 8B D9 48 8B 48 20 0F B7 41)
 constexpr const char* kActorGetterPattern =
-    "40 53 48 83 EC 20 48 8B 41 68 48 8B D9 48 8B 48 20 0F B7 41";
+    "40 53 48 83 EC 20 48 8B 41 68 48 8B D9 48 8B 50 20 0F B7 52 30";
 
 // TrItemValue 생성자. 기본값을 우리가 흉내내지 않고 게임에 맡긴다.
 constexpr const char* kItemValueCtorPattern =
     "48 89 5C 24 08 57 48 83 EC 20 33 FF 48 C7 01 FF FF FF FF 48 8D 41 40 89";
 
-// 스레드의 작업 디스패처. 12바이트만으로 이미지 안에서 유일하다.
+// 스레드의 작업 디스패처. 작업 하나를 실행한다 - `call [[rcx+N]+8]`
+// (specs/2026-09-04-frame-boundary.md 의 스택 [13]). 1.0.0.3392(2026-10-30)에서 N 이
+// 0x78 -> **0x80** 으로 밀려 disp8 이 disp32 가 됐다(`48 8B 81 80 00 00 00`). 15바이트로
+// 이미지 안에서 유일하다(0x1612060, 29바이트: sub rsp,0x28 / mov rax,[rcx+0x80] /
+// mov rdx,[rax+8] / test rdx,rdx / je / call rdx).
+// (2976 까지: 48 83 EC 28 48 8B 41 78 48 8B 50 08 - 12바이트로 유일했다)
 constexpr const char* kTaskDispatcherPattern =
-    "48 83 EC 28 48 8B 41 78 48 8B 50 08";
+    "48 83 EC 28 48 8B 81 80 00 00 00 48 8B 50 08";
 
 // 메시지 펌프 (RVA 0x2369170, 2.00.01). 앞머리 40바이트. 24바이트는
 // 10곳, 32바이트는 2곳이 겹친다 - 이 프롤로그 모양이 흔하다.
@@ -63,9 +77,11 @@ constexpr const char* kMessagePumpPattern =
 // sub rsp,0x20; mov rax,gs:[0x58])는 흔해 15곳이 겹친다. 함수 고유
 // 바이트(mov rbx,rcx; mov [rcx+0x70],1; mov rsi,[rax])까지 34바이트로
 // 유일하다.
+// 1.0.0.3392(2026-10-30): `mov [rcx+0x70],1` 이 `mov [rcx+0x78],1` 로 밀렸다(0xAF882F0).
+// 머리 24바이트는 8곳, 아래 34바이트로 1곳. (2976 까지: … C6 41 70 01 48 8B 30)
 constexpr const char* kTaskRunPattern =
     "48 89 5C 24 08 48 89 74 24 10 57 48 83 EC 20 65 48 8B 04 25 58 00 00 "
-    "00 48 89 CB C6 41 70 01 48 8B 30";
+    "00 48 89 CB C6 41 78 01 48 8B 30";
 
 using ActorGetterFn = std::uintptr_t(__fastcall*)(void*);
 

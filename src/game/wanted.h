@@ -1,5 +1,6 @@
 #pragma once
 
+// @build 1.0.0.3392  메시지 ID 둘 재번호(2026-10-30, recheck.py) - 2837 -> 3108 · 2983 -> 2580.
 // @build 1.0.0.2944  메시지 ID 둘 재도출 + 런타임 해석값을 쓰도록 고쳤다
 // @build 1.0.0.2850  **런타임 구조 오프셋(+0x30 사슬)은 아직 2850 실측이다**
 //   근거: specs/2026-09-18-game-update-2944.md §2 §10
@@ -305,7 +306,7 @@ int wanted_purge(const mem::Reader& reader, const WantedPurge& what);
 // "아무 일도 안 남" 으로만 보이므로, 이 불변식은 시험으로 건다.
 
 // @class TrocTrClearWantedReq
-inline constexpr std::uint16_t kClearWantedId = 2837;   // 2850 까지 2646
+inline constexpr std::uint16_t kClearWantedId = 3108;   // 2976 까지 2837 · 2850 까지 2646
 
 // 머리 5 + 본문 5(u32 핸들 + u8 플래그). 본문 폭은 역직렬화기가
 // 읽기 함수를 부르기 직전의 `r8d` 에서 읽었다 - 4 다음에 1 이다.
@@ -330,7 +331,7 @@ bool build_clear_wanted_wire(std::uint32_t handle, std::uint8_t flag,
 // `WantedRegionData` 안에 없다 - 두 상태를 바이트로 견주면 `+0x30` 말고는
 // 한 바이트도 안 다르다. 게임이 그 일을 하는 메시지를 따로 들고 있다.
 // @class TrocTrChangeWantedStateReq
-inline constexpr std::uint16_t kChangeWantedStateId = 2983;   // 2850 까지 2848
+inline constexpr std::uint16_t kChangeWantedStateId = 2580;   // 2976 까지 2983 · 2850 까지 2848
 
 // 머리 5 + 본문 6(u32 핸들 + u8 상태 + u8). 폭은 역직렬화기
 // (RVA 0x29A6AA0)가 읽기 함수를 부르기 직전의 `r8d` 에서 읽었다 -

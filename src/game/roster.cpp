@@ -18,21 +18,24 @@ constexpr std::size_t kIndexPtr = 0x28;    // 색인 표 포인터
 constexpr std::size_t kRecordsPtr = 0x58;  // 레코드 포인터 배열
 
 // 레코드 (탈것·캐릭터 공통, 실측 2026-09-04)
-constexpr std::size_t kRecKey = 0x00;        // u16 키 (첫 u32 의 하위 16비트)
-constexpr std::size_t kRecStringKey = 0x08;  // 엔진 문자열 객체 포인터
+// 3392 에서 머리가 {+0 문자열 객체*, +8 키} 로 뒤바뀌었다(2976 까지 {+0 키, +8 문자열}).
+// 키 폭은 표마다 다르다 - CharacterInfo u32 · MercenaryInfo u8(그 뒤 +9 부터 bool).
+constexpr std::size_t kRecKey = 0x08;        // 키 (CharacterInfo 는 u32, 하위 16비트가 행)
+constexpr std::size_t kRecStringKey = 0x00;  // 엔진 문자열 객체 포인터
 
 // 캐릭터 레코드의 동반자 필드 (실측 2026-09-05)
-constexpr std::size_t kCharMercRow = 0xBE;     // u16 _mercenaryInfo (행 번호)
-constexpr std::size_t kCharCatchable = 0x148;  // u8 _isCatchable
-constexpr std::size_t kCharUnique = 0x14B;     // u8 _isUnique
-constexpr std::size_t kCharHirable = 0x156;    // u8 _isHirable
-constexpr std::size_t kCharEquipInfo = 0x6A;    // u16 _equipInfo
-constexpr std::size_t kCharOwnedMerc = 0x100;   // u16 _ownedMercenaryCharacterInfo
-constexpr std::size_t kCharCountAble = 0x16E;   // u8  _isMercenaryCountAble
+// 3392 (fields.py, 2026-10-30). 2976 까지의 자리는 뒤에 남겼다.
+constexpr std::size_t kCharMercRow = 0xA6;     // u16 _mercenaryInfo (행 번호) (2976 0xBE)
+constexpr std::size_t kCharCatchable = 0x47;   // u8 _isCatchable (2976 0x148)
+constexpr std::size_t kCharUnique = 0x48;      // u8 _isUnique (2976 0x14B)
+constexpr std::size_t kCharHirable = 0x16;     // u8 _isHirable (2976 0x156)
+constexpr std::size_t kCharEquipInfo = 0x9E;    // u16 _equipInfo (2976 0x6A)
+constexpr std::size_t kCharOwnedMerc = 0x96;    // u16 _ownedMercenaryCharacterInfo (2976 0x100)
+constexpr std::size_t kCharCountAble = 0x22;    // u8  _isMercenaryCountAble (2976 0x16E)
 
 // 용병 레코드 (실측 2026-09-05)
-constexpr std::size_t kMercType = 0x20;  // u8 _mercenaryType
-constexpr std::size_t kMercPlayable = 0x22;  // u8 _isPlayable
+constexpr std::size_t kMercType = 0x2E;  // u8 _mercenaryType (2976 0x20)
+constexpr std::size_t kMercPlayable = 0x32;  // u8 _isPlayable (2976 0x22)
 
 // 엔진 문자열 객체
 constexpr std::size_t kStrData = 0x00;    // char* UTF-8
@@ -165,7 +168,8 @@ bool build_catalog_from_manager(const mem::Reader& reader,
         RosterEntry entry;
         entry.row = i;
         if (kind == RosterKind::Mercenary) {
-            // +0x00 이 포인터라 행 번호가 키다. 캐릭터 표 +0xBE 와 맞는다.
+            // 행 번호가 키다(3392 의 +0x08 은 u8 키라 u16 으로 읽으면 안 된다).
+            // 캐릭터 표의 _mercenaryInfo 와 맞는다.
             entry.key = i;
             std::uint8_t t = 0;
             if (reader.read_value(record + kMercType, &t)) entry.merc_type = t;
@@ -183,8 +187,8 @@ bool build_catalog_from_manager(const mem::Reader& reader,
                 read_engine_string(reader, static_cast<std::uintptr_t>(str_obj));
         }
         if (kind == RosterKind::Character) {
-            // 현지화 엔티티는 +0x00 의 u32 전체다(roster.h 설명).
-            reader.read_value(record, &entry.loc_entity);
+            // 현지화 엔티티는 키 칸의 u32 전체다(roster.h 설명. 3392 부터 +0x08).
+            reader.read_value(record + kRecKey, &entry.loc_entity);
             std::uint16_t row = 0xFFFF;
             if (reader.read_value(record + kCharMercRow, &row)) {
                 entry.merc_row = row;

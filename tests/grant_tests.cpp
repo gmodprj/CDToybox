@@ -11,9 +11,11 @@ namespace {
 using cdtb::game::find_actor_getter_rva;
 
 // 실제 실행 파일에서 뽑은 앞머리들. 둘 다 이미지 안에서 유일했다.
+// 1.0.0.3392(2026-10-30): 뒤쪽 레지스터가 바뀌었다(rcx -> rdx, movzx eax -> edx [rdx+0x30]).
+// (2976 까지: … 48 8B D9 48 8B 48 20 0F B7 41)
 const std::uint8_t kActorGetter[] = {
     0x40, 0x53, 0x48, 0x83, 0xEC, 0x20, 0x48, 0x8B, 0x41, 0x68,
-    0x48, 0x8B, 0xD9, 0x48, 0x8B, 0x48, 0x20, 0x0F, 0xB7, 0x41};
+    0x48, 0x8B, 0xD9, 0x48, 0x8B, 0x50, 0x20, 0x0F, 0xB7, 0x52, 0x30};
 
 std::vector<std::uint8_t> image_with(const std::uint8_t* body, std::size_t n,
                                      std::size_t at, std::size_t total = 4096) {
@@ -486,14 +488,14 @@ TEST(item_value_refuses_a_small_buffer) {
 // 스레드의 작업 디스패처 진입점이다. 호출 스택을 떠서 찾았다.
 //
 //   sub rsp,0x28
-//   mov rax,[rcx+0x78]
+//   mov rax,[rcx+0x80]      (2976 까지 [rcx+0x78] - 1.0.0.3392 에서 칸이 +8 밀렸다)
 //   mov rdx,[rax+8]
 //   test rdx,rdx / je / call rdx     <- 작업 콜백
 //
 // 그 앞은 아직 아무 작업도 시작하지 않은 자리다.
 TEST(find_task_dispatcher_returns_its_offset) {
-    const std::uint8_t body[] = {0x48, 0x83, 0xEC, 0x28, 0x48, 0x8B,
-                                 0x41, 0x78, 0x48, 0x8B, 0x50, 0x08};
+    const std::uint8_t body[] = {0x48, 0x83, 0xEC, 0x28, 0x48, 0x8B, 0x81, 0x80,
+                                 0x00, 0x00, 0x00, 0x48, 0x8B, 0x50, 0x08};
     std::vector<std::uint8_t> img(4096, 0xCC);
     for (std::size_t i = 0; i < sizeof(body); ++i) img[0x200 + i] = body[i];
     std::uint64_t rva = 0;
@@ -550,13 +552,13 @@ TEST(find_message_pump_fails_when_absent) {
 }
 
 // 작업 실행 래퍼. 앞 24바이트(흔한 프롤로그 + gs:[0x58])는 이미지에
-// 15곳이라, 함수 고유 바이트(mov rbx,rcx; mov [rcx+0x70],1; mov
-// rsi,[rax])까지 34바이트로 유일하다.
+// 15곳(3392 는 8곳)이라, 함수 고유 바이트(mov rbx,rcx; mov [rcx+0x78],1; mov
+// rsi,[rax])까지 34바이트로 유일하다. 1.0.0.3392 에서 그 칸이 0x70 -> 0x78 로 밀렸다.
 namespace {
 const std::uint8_t kTaskRunHead[] = {
     0x48, 0x89, 0x5C, 0x24, 0x08, 0x48, 0x89, 0x74, 0x24, 0x10, 0x57,
     0x48, 0x83, 0xEC, 0x20, 0x65, 0x48, 0x8B, 0x04, 0x25, 0x58, 0x00,
-    0x00, 0x00, 0x48, 0x89, 0xCB, 0xC6, 0x41, 0x70, 0x01, 0x48, 0x8B,
+    0x00, 0x00, 0x48, 0x89, 0xCB, 0xC6, 0x41, 0x78, 0x01, 0x48, 0x8B,
     0x30};
 }  // namespace
 
@@ -1004,16 +1006,16 @@ TEST(hire_check_jmp_target_follows_rel32) {
              base + 0xE8345F0);
 }
 
-// 2976 실측(2026-09-26, 파일에서 읽음). 자리는 kHireCheckRva 와 같다.
-// (2949 는 0x214E8C0 의 E9 AB 4C 2E 0C -> 0xE433570 이었다.)
-TEST(hire_check_jmp_target_follows_the_2976_thunk) {
-    // 0x214E910: E9 BB E2 36 0C -> 0x214E915 + 0x0C36E2BB = 0xE4BCBD0
-    const std::uint8_t thunk[] = {0xE9, 0xBB, 0xE2, 0x36, 0x0C};
+// 3392 실측(2026-10-30, 파일에서 읽음). 자리는 kHireCheckRva 와 같다.
+// (2976 은 0x214E910 의 E9 BB E2 36 0C -> 0xE4BCBD0, 2949 는 0x214E8C0 의 E9 AB 4C 2E 0C -> 0xE433570.)
+TEST(hire_check_jmp_target_follows_the_3392_thunk) {
+    // 0x23112A0: E9 0B 5A BA 0A -> 0x23112A5 + 0x0ABA5A0B = 0xCEB6CB0
+    const std::uint8_t thunk[] = {0xE9, 0x0B, 0x5A, 0xBA, 0x0A};
     const std::uintptr_t base = 0x140000000ull;
-    CHECK_EQ(cdtb::game::kHireCheckRva, 0x214E910ull);
+    CHECK_EQ(cdtb::game::kHireCheckRva, 0x23112A0ull);
     CHECK_EQ(cdtb::game::hire_check_jmp_target(thunk, sizeof(thunk),
                                                base + cdtb::game::kHireCheckRva),
-             base + 0xE4BCBD0);
+             base + 0xCEB6CB0);
 }
 
 TEST(hire_check_jmp_target_rejects_non_jmp_or_short) {
@@ -1025,21 +1027,30 @@ TEST(hire_check_jmp_target_rejects_non_jmp_or_short) {
     CHECK_EQ(cdtb::game::hire_check_jmp_target(nullptr, 5, 0x1420991F0ull), 0u);
 }
 
-TEST(hire_check_body_ok_accepts_the_2850_prologue) {
-    // 0xE0D44F0: mov rax,rsp / mov [rax+8],rbx / mov [rax+0x20],r9d / mov [rax+0x18],r8w
-    const std::uint8_t body[] = {0x48, 0x89, 0xE0, 0x48, 0x89, 0x58, 0x08, 0x44,
-                                 0x89, 0x48, 0x20, 0x66, 0x44, 0x89, 0x40, 0x18};
-    CHECK(cdtb::game::hire_check_body_ok(body, sizeof(body)));
-    CHECK(cdtb::game::hire_check_body_ok(body, 11));
+// 1.0.0.3392(2026-10-30) 본체 0xCEB6CB0 의 머리 32바이트(파일에서 읽음). 28바이트부터 exe 에서 1곳.
+// (2850~2976 은 `48 89 E0 48 89 58 08 44 89 48 20` - mov rax,rsp / mov [rax+8],rbx / mov [rax+0x20],r9d 였다.)
+namespace {
+const std::uint8_t kHireCheckBody3392[] = {
+    0x48, 0x89, 0x5C, 0x24, 0x08, 0x44, 0x89, 0x4C, 0x24, 0x20, 0x55, 0x56, 0x57, 0x41,
+    0x54, 0x41, 0x55, 0x41, 0x56, 0x41, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x45, 0x0F, 0xB7,
+    0xE0, 0x49, 0x89, 0xD6};
+}  // namespace
+
+TEST(hire_check_body_ok_accepts_the_3392_prologue) {
+    CHECK(cdtb::game::hire_check_body_ok(kHireCheckBody3392, sizeof(kHireCheckBody3392)));
+    CHECK(cdtb::game::hire_check_body_ok(kHireCheckBody3392, 28));
 }
 
 TEST(hire_check_body_ok_rejects_short_or_different) {
-    const std::uint8_t body[] = {0x48, 0x89, 0xE0, 0x48, 0x89, 0x58,
-                                 0x08, 0x44, 0x89, 0x48, 0x20};
-    CHECK(!cdtb::game::hire_check_body_ok(body, sizeof(body) - 1));
-    CHECK(!cdtb::game::hire_check_body_ok(nullptr, sizeof(body)));
-    std::uint8_t other[sizeof(body)];
-    std::memcpy(other, body, sizeof(body));
-    other[10] = 0x18;  // mov [rax+0x18],r9d - 같은 꼴의 다른 함수
+    CHECK(!cdtb::game::hire_check_body_ok(kHireCheckBody3392, 27));
+    CHECK(!cdtb::game::hire_check_body_ok(nullptr, 28));
+    std::uint8_t other[28];
+    std::memcpy(other, kHireCheckBody3392, sizeof(other));
+    other[9] = 0x18;  // mov [rsp+0x18],r9d - 같은 꼴의 다른 함수
     CHECK(!cdtb::game::hire_check_body_ok(other, sizeof(other)));
+    // 옛(2976) 프롤로그는 이제 거부돼야 한다 - 자리가 낡았다는 뜻이다.
+    const std::uint8_t old[] = {0x48, 0x89, 0xE0, 0x48, 0x89, 0x58, 0x08, 0x44, 0x89, 0x48, 0x20,
+                                0x66, 0x44, 0x89, 0x40, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    CHECK(!cdtb::game::hire_check_body_ok(old, sizeof(old)));
 }

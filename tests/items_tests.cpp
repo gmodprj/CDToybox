@@ -19,14 +19,15 @@ using cdtb::tests::FakeMemory;
 //   매니저 +0x28  색인 표 포인터 ((u32 키, u32 ?) 쌍)
 //          +0x30  u32 개수
 //          +0x58  레코드 포인터 배열
-//   레코드 +0x00  u32 키
-//          +0x28  u64 이름 현지화 키
+//   레코드 +0x00  문자열 객체* / +0x08 u32 키   (3392. 2976 까지는 서로 바뀐 자리)
+//          +0x98  u64 이름 현지화 키 (_itemName +0x90 객체의 +8)
 //
 // 배치 (힙 오프셋):
 //   0x0000  매니저
 //   0x0100  색인 표
 //   0x0200  레코드 포인터 배열
-//   0x1000  레코드 3개 (0x600 간격. 등급이 +0x210 에 있어 겹치면 안 된다)
+//   0x1000  레코드 3개 (0x600 간격)
+//   0x3000  지연 객체들(담금질 벡터 · DropDefaultData) - 3392 부터 레코드 밖에 산다
 struct Fixture {
     FakeMemory mem;
     static constexpr std::size_t kMgr = 0x0000;
@@ -53,25 +54,25 @@ struct Fixture {
 
             const std::size_t rec = kRecords + i * kRecStride;
             mem.put_u64(kPtrs + i * 8, mem.heap_addr(rec));
-            mem.put_u32(rec + 0x00, keys[i]);
-            // 이름 현지화 키는 레코드가 직접 들고 있다.
-            mem.put_u64(rec + 0x28,
+            mem.put_u32(rec + 0x08, keys[i]);
+            // 이름 현지화 키는 레코드가 직접 들고 있다(_itemName +0x90 의 키 칸).
+            mem.put_u64(rec + 0x98,
                         (static_cast<std::uint64_t>(keys[i]) << 32) | 0x70ull);
             // 설명 현지화 키는 +0xB8 이다(스펙 §3). 필드 0x71.
             mem.put_u64(rec + 0xB8,
                         (static_cast<std::uint64_t>(keys[i]) << 32) | 0x71ull);
-            // 등급 +0x210 (0=없음, 1..5), 분류 +0xA3
-            mem.put_u8(rec + 0x210, static_cast<std::uint8_t>(i + 1));
-            mem.put_u8(rec + 0xA3, static_cast<std::uint8_t>(56 + i));
-            // 최대 스택 +0x18. 지급 개수를 여기에 맞춰 자른다.
-            mem.put_u32(rec + 0x18, static_cast<std::uint32_t>(10 * (i + 1)));
+            // 등급 +0x39 (0=없음, 1..5), 분류 +0x37   (2976 까지 +0x210 · +0xA3)
+            mem.put_u8(rec + 0x39, static_cast<std::uint8_t>(i + 1));
+            mem.put_u8(rec + 0x37, static_cast<std::uint8_t>(56 + i));
+            // 최대 스택 +0x10. 지급 개수를 여기에 맞춰 자른다.
+            mem.put_u32(rec + 0x10, static_cast<std::uint32_t>(10 * (i + 1)));
             build_string_key(i, rec);
         }
         build_localization();
     }
 
     // --- 내부 이름(`_stringKey`) ---
-    //   레코드 +0x08 -> { char* +0x00, u32 길이 +0x08 }
+    //   레코드 +0x00 -> { char* +0x00, u32 길이 +0x08 }   (2976 까지 +0x08)
     // 장비의 캐릭터 전용 구분이 이 문자열의 접두사에서 나온다.
     static constexpr std::size_t kStrObjs = 0x2400;
     static constexpr std::size_t kStrChars = 0x2800;
@@ -84,7 +85,7 @@ struct Fixture {
     void build_string_key(int i, std::size_t rec) {
         const std::size_t obj = kStrObjs + i * 0x40;
         const std::size_t chars = kStrChars + i * 0x40;
-        mem.put_u64(rec + 0x08, mem.heap_addr(obj));
+        mem.put_u64(rec + 0x00, mem.heap_addr(obj));
         mem.put_u64(obj + 0x00, mem.heap_addr(chars));
         mem.put_u32(obj + 0x08,
                     static_cast<std::uint32_t>(std::strlen(kInternal[i])));
@@ -92,6 +93,23 @@ struct Fixture {
     }
 
     std::uintptr_t manager() const { return mem.heap_addr(kMgr); }
+
+    // --- 3392 의 지연 객체들 ---
+    static constexpr std::size_t kLazy = 0x3000;
+    // 담금질 목록은 지연 벡터 포인터(+0x188)다. 개수(+8)만 있으면 된다.
+    void set_temper_cap(int i, std::uint32_t cap) {
+        const std::size_t vec = kLazy + static_cast<std::size_t>(i) * 0x40;
+        mem.put_u64(kRecords + static_cast<std::size_t>(i) * kRecStride + 0x188,
+                    mem.heap_addr(vec));
+        mem.put_u32(vec + 0x08, cap);
+    }
+    // 소켓 칸 수는 DropDefaultData(지연 객체, +0x180)의 u8 +0x2C 다.
+    void set_socket_cap(int i, std::uint8_t n) {
+        const std::size_t dd = kLazy + 0x100 + static_cast<std::size_t>(i) * 0x40;
+        mem.put_u64(kRecords + static_cast<std::size_t>(i) * kRecStride + 0x180,
+                    mem.heap_addr(dd));
+        mem.put_u8(dd + 0x2C, n);
+    }
 
     // --- 현지화 시스템도 같은 힙에 세운다 ---
     //   0x0600 시스템 / 0x0700 카테고리 표 / 0x0A80 포인터 배열
@@ -474,12 +492,12 @@ TEST(grade_label_names_the_five_tiers) {
 // 함수가 `담금질 <= [레코드+0x250] - 1` 을 검사하고 넘으면 거절한다
 // (docs/superpowers/specs/2026-09-02-inventory.md).
 //
-// 실측: 장비는 +0x250 이 11 이라 0..10 이고 툴팁 게이지가 10칸이다.
-// 재료(스콜레사이트광석)는 0 이라 담금질이 없다.
+// 실측: 장비는 담금질 목록 개수가 11 이라 0..10 이고 툴팁 게이지가 10칸이다.
+// 재료(스콜레사이트광석)는 0 이라 담금질이 없다. (3392 부터 개수는 지연 벡터 +8.)
 
 TEST(read_item_table_turns_the_cap_into_the_highest_level) {
     Fixture f;
-    f.mem.put_u32(Fixture::kRecords + 0x250, 11);
+    f.set_temper_cap(0, 11);
 
     std::vector<ItemEntry> items;
     CHECK(cdtb::game::read_item_table(f.mem, f.mem.heap_addr(Fixture::kMgr),
@@ -492,7 +510,7 @@ TEST(read_item_table_turns_the_cap_into_the_highest_level) {
 TEST(read_item_table_reports_no_temper_when_the_cap_is_zero) {
     // 재료 아이템이다. 0 을 그대로 빼면 0xFFFFFFFF 가 된다.
     Fixture f;
-    f.mem.put_u32(Fixture::kRecords + 0x250, 0);
+    f.set_temper_cap(0, 0);
 
     std::vector<ItemEntry> items;
     CHECK(cdtb::game::read_item_table(f.mem, f.mem.heap_addr(Fixture::kMgr),
@@ -504,7 +522,7 @@ TEST(read_item_table_reports_no_temper_when_the_cap_is_zero) {
 
 TEST(build_item_catalog_carries_the_temper_cap) {
     Fixture f;
-    f.mem.put_u32(Fixture::kRecords + 0x250, 11);
+    f.set_temper_cap(0, 11);
 
     std::vector<cdtb::game::ItemCatalogEntry> cat;
     LocSystem sys;
@@ -517,9 +535,9 @@ TEST(build_item_catalog_carries_the_temper_cap) {
 
 // --- 소켓 -------------------------------------------------------------
 
-TEST(read_item_table_reads_the_equip_type_at_0x42) {
+TEST(read_item_table_reads_the_equip_type_at_0x4a) {
     Fixture f;
-    f.mem.put_u16(Fixture::kRecords + 0x42, 7);
+    f.mem.put_u16(Fixture::kRecords + 0x4A, 7);   // _equipTypeInfo (2976 까지 +0x42)
 
     std::vector<ItemEntry> items;
     CHECK(cdtb::game::read_item_table(f.mem, f.mem.heap_addr(Fixture::kMgr),
@@ -531,9 +549,9 @@ TEST(read_item_table_reads_the_equip_type_at_0x42) {
 
 TEST(build_item_catalog_carries_the_socket_cap_and_equip_type) {
     Fixture f;
-    f.mem.put_u32(Fixture::kRecords + 0x238, 3);
-    f.mem.put_u16(Fixture::kRecords + 0x42, 7);
-    f.mem.put_u32(Fixture::kRecords + 0x18, 1);   // 안 겹치는 아이템
+    f.set_socket_cap(0, 3);                       // DropDefaultData 의 u8 (2976 까지 +0x238 u32)
+    f.mem.put_u16(Fixture::kRecords + 0x4A, 7);
+    f.mem.put_u32(Fixture::kRecords + 0x10, 1);   // 안 겹치는 아이템
 
     std::vector<cdtb::game::ItemCatalogEntry> cat;
     LocSystem sys;
@@ -802,7 +820,7 @@ TEST(read_item_table_fills_owner_from_the_internal_name) {
 TEST(read_item_table_owner_is_shared_when_the_string_key_is_missing) {
     // 문자열 칸이 비어 있어도 읽기가 멈추면 안 된다 - 공용으로 둔다.
     Fixture f;
-    f.mem.put_u64(Fixture::kRecords + 0x08, 0);
+    f.mem.put_u64(Fixture::kRecords + 0x00, 0);
     std::vector<ItemEntry> out;
     CHECK(cdtb::game::read_item_table(f.mem, f.manager(), &out, 0));
     CHECK_EQ(out.size(), static_cast<std::size_t>(3));

@@ -8,6 +8,7 @@
 
 #include "fake_memory.h"
 #include "game/item_effects.h"
+#include "game/knowledge.h"
 #include "game/localization.h"
 #include "game/stat_names.h"
 #include "harness.h"
@@ -146,9 +147,10 @@ struct World {
     }
 
     // SkillInfo 레벨 목록. 칸 16바이트 {BuffData** 배열, u32 개수, u32 채움}.
+    // 3392 부터 목록이 +0x38/+0x40 이라 레코드를 0x60 으로 잡는다(0x40 이면 개수가 다음 할당을 덮는다).
     void set_skill(const Tbl& t, std::uint32_t row,
                    const std::vector<std::vector<std::size_t>>& levels) {
-        const std::size_t rec = make_record(t, row, 0x40);
+        const std::size_t rec = make_record(t, row, 0x60);
         const std::size_t list =
             alloc(levels.size() * cdtb::game::kSkillLevelStride);
         mem.put_u64(rec + cdtb::game::kSkillLevels, addr(list));
@@ -208,13 +210,20 @@ struct World {
         }
     }
 
-    // ItemInfo 의 소모품 입구. +0x88 은 **하위 u32 가 개수**다(상위는 용량).
+    // 3392 의 지연 벡터 {ptr, u32 개수, u32 용량}. 레코드 칸에는 이것의 주소가 들어간다.
+    std::size_t lazy_vec(std::uintptr_t data, std::uint32_t n) {
+        const std::size_t v = alloc(0x10);
+        mem.put_u64(v + cdtb::game::kLazyVecData, data);
+        mem.put_u32(v + cdtb::game::kLazyVecCount, n);
+        mem.put_u32(v + 0x0C, 999);   // 용량
+        return v;
+    }
+
+    // ItemInfo 의 소모품 입구. 3392 부터 지연 벡터 포인터다.
     void set_uses(std::size_t item_rec, const std::vector<std::uint32_t>& rows) {
         const std::size_t list = alloc(rows.size() * 4 + 8);
-        mem.put_u64(item_rec + cdtb::game::kItemUseList, addr(list));
-        mem.put_u32(item_rec + cdtb::game::kItemUseCount,
-                    static_cast<std::uint32_t>(rows.size()));
-        mem.put_u32(item_rec + cdtb::game::kItemUseCount + 4, 999);   // 용량
+        mem.put_u64(item_rec + cdtb::game::kItemUseListPtr,
+                    addr(lazy_vec(addr(list), static_cast<std::uint32_t>(rows.size()))));
         for (std::size_t i = 0; i < rows.size(); ++i) {
             mem.put_u32(list + i * 4, rows[i]);
         }
@@ -240,15 +249,15 @@ struct World {
         return row;
     }
 
-    // 어비스 입구. EnchantData 는 포인터가 아니라 0x70 스트라이드 인라인이다.
+    // 어비스 입구. EnchantData 는 포인터가 아니라 0x80 스트라이드 인라인이고(2976 0x70),
+    // 그 배열을 가리키는 벡터가 지연 포인터로 레코드에 걸린다(3392).
     void set_enchants(
         std::size_t item_rec,
         const std::vector<std::vector<std::pair<std::uint16_t, std::int32_t>>>& enchants) {
         const std::size_t list =
             alloc(enchants.size() * cdtb::game::kEnchantStride);
-        mem.put_u64(item_rec + cdtb::game::kItemEnchantList, addr(list));
-        mem.put_u32(item_rec + cdtb::game::kItemEnchantCount,
-                    static_cast<std::uint32_t>(enchants.size()));
+        mem.put_u64(item_rec + cdtb::game::kItemEnchantListPtr,
+                    addr(lazy_vec(addr(list), static_cast<std::uint32_t>(enchants.size()))));
         for (std::size_t i = 0; i < enchants.size(); ++i) {
             const std::size_t ed = list + i * cdtb::game::kEnchantStride;
             if (enchants[i].empty()) continue;
@@ -541,10 +550,10 @@ struct Fixture {
         w.mem.put_u16(status_rec + cdtb::game::kStatusKnowRow, 1);
 
         const std::size_t k0 = w.make_record(know, 0, 0x40);
-        w.mem.put_u64(k0 + 0x08, w.addr(w.engine_string("Knowledge_Hp",
-                                                        0x11111111u)));
+        w.mem.put_u64(k0 + cdtb::game::kInfoInternalName,
+                      w.addr(w.engine_string("Knowledge_Hp", 0x11111111u)));
         const std::size_t k1 = w.make_record(know, 1, 0x40);
-        w.mem.put_u64(k1 + 0x08,
+        w.mem.put_u64(k1 + cdtb::game::kInfoInternalName,
                       w.addr(w.engine_string("Knowledge_IceResistance",
                                              0x22222222u)));
         w.add_loc(9, cdtb::game::loc_key(0x11111111u,

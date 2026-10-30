@@ -63,28 +63,31 @@ TEST(callgate_table_has_all_four_gates) {
 }
 
 TEST(callgate_sites_match_the_measured_rvas) {
+    // 3392(2026-10-30, DLC). 2976 은 0x9DE83C · 0x9DE899 · 0x9DD8F9 · 0x9DD724 였다.
     CHECK_EQ(static_cast<long long>(callgate_def(kCallGateIndoor)->rva),
-             0x009DE83CLL);
+             0x00AE22DCLL);
     CHECK_EQ(static_cast<long long>(callgate_def(kCallGateRoof)->rva),
-             0x009DE899LL);
+             0x00AE2339LL);
     CHECK_EQ(static_cast<long long>(callgate_def(kCallGateRegion)->rva),
-             0x009DD8F9LL);
+             0x00AE16B1LL);
     CHECK_EQ(static_cast<long long>(callgate_def(kCallGatePosition)->rva),
-             0x009DD724LL);
+             0x00AE14D6LL);
 }
 
-TEST(callgate_gates_all_moved_by_one_delta_in_2976) {
-    // 2949 -> 2976 에서 넷이 **같은 폭**(+0x60)으로 밀렸다. 하나만 폭이 다르면
-    // 그 관문을 잘못 짚었다는 신호다 - 다음 갱신 때 이 대조가 그것을 잡는다.
-    // (영역이 다르면 폭도 달라진다. 같은 영역 안에서만 성립한다.
-    //  2850 -> 2944 때는 넷 다 +0x7B1E0 이었다.)
-    const long long kDelta = 0x60LL;
-    const long long old_rva[kCallGateCount] = {0x009DE7DCLL, 0x009DE839LL,
-                                               0x009DD899LL, 0x009DD6C4LL};
+TEST(callgate_gates_in_one_function_moved_by_one_delta_in_3392) {
+    // 2976 -> 3392 에서는 폭이 **함수마다 다르다** - 실내·지붕은 한 함수(0xAE2100) 안이라
+    // 둘이 같은 +0x103AA0 이고, 지역(0xAE1560 안) +0x103DB8 · 위치(검증기 0xAE1310 안)
+    // +0x103DB2 다. 같은 함수 안의 둘이 갈리면 그 관문을 잘못 짚었다는 신호다.
+    // (2949 -> 2976 은 넷 다 +0x60, 2850 -> 2944 는 넷 다 +0x7B1E0 이었다.)
+    const long long old_rva[kCallGateCount] = {0x009DE83CLL, 0x009DE899LL,
+                                               0x009DD8F9LL, 0x009DD724LL};
+    const long long delta[kCallGateCount] = {0x103AA0LL, 0x103AA0LL, 0x103DB8LL,
+                                             0x103DB2LL};
     for (int g = 0; g < kCallGateCount; ++g) {
         CHECK_EQ(static_cast<long long>(callgate_def(g)->rva) - old_rva[g],
-                 kDelta);
+                 delta[g]);
     }
+    CHECK_EQ(delta[kCallGateIndoor], delta[kCallGateRoof]);
 }
 
 TEST(callgate_patches_exactly_one_byte_and_it_is_a_conditional_jump) {
@@ -123,18 +126,21 @@ TEST(callgate_position_uses_jne_not_je) {
 }
 
 TEST(callgate_windows_are_the_measured_bytes) {
-    const std::uint8_t indoor[8] = {0x03, 0x03, 0x84, 0xC0, 0x74, 0x0E, 0x8B,
+    // 3392(2026-10-30) 실측 창. 실내 창의 앞 두 바이트는 call 의 rel32 꼬리(03 03 -> 20 03).
+    const std::uint8_t indoor[8] = {0x20, 0x03, 0x84, 0xC0, 0x74, 0x0E, 0x8B,
                                     0x05};
     // 지붕·지역 창의 뒤 세 바이트는 **전역 변위**라 코드와 따로 움직인다 -
-    // 2976 에서 DB->5F · 7F->03 으로 바뀌었다(자리는 넷 다 +0x60). 그래서
-    // 이 둘만 rederive 의 창 대조가 "못 찾음" 으로 떨어졌고, 슬롯에서 다시
-    // 짚었다(specs/2026-09-26-game-update-2976.md).
-    const std::uint8_t roof[8] = {0xC0, 0x74, 0x0A, 0x8B, 0x05, 0x5F, 0x92,
-                                  0x31};
-    const std::uint8_t region[8] = {0xC0, 0x74, 0x75, 0x8B, 0x05, 0x03, 0xA2,
-                                    0x31};
-    const std::uint8_t position[8] = {0x06, 0x00, 0x84, 0xC0, 0x75, 0x0A, 0x8B,
-                                      0x05};
+    // 2976 에서 DB->5F · 7F->03, 3392 에서 5F 92 31 -> 03 66 65 · 03 A2 31 -> 8F 72 65 으로
+    // 바뀌었다(지역은 je 폭도 75 -> 7D). 그래서 rederive 의 창 대조가 "못 찾음" 으로
+    // 떨어지고, 슬롯에서 다시 짚었다(specs/2026-10-30-game-update-3392.md §9).
+    const std::uint8_t roof[8] = {0xC0, 0x74, 0x0A, 0x8B, 0x05, 0x03, 0x66,
+                                  0x65};
+    const std::uint8_t region[8] = {0xC0, 0x74, 0x7D, 0x8B, 0x05, 0x8F, 0x72,
+                                    0x65};
+    // 위치 창은 3392 에서 한 칸 앞으로 걸려 call 의 rel32 꼬리 네 바이트가 들어왔고
+    // jne 가 창 +6 이다(2976 까지 06 00 84 C0 75 0A 8B 05, jne 는 +4).
+    const std::uint8_t position[8] = {0xCC, 0xD7, 0x06, 0x00, 0x84, 0xC0, 0x75,
+                                      0x0A};
     CHECK(std::memcmp(callgate_def(kCallGateIndoor)->want, indoor, 8) == 0);
     CHECK(std::memcmp(callgate_def(kCallGateRoof)->want, roof, 8) == 0);
     CHECK(std::memcmp(callgate_def(kCallGateRegion)->want, region, 8) == 0);

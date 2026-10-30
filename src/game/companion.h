@@ -1,5 +1,8 @@
 #pragma once
 
+// @build 1.0.0.3392  작업 함수 둘 재도출(2026-10-30) + 메시지 ID 여섯 전부 재번호. **역직렬화 안 호출
+//   오프셋이 바뀌었다**(+0x180 -> +0x188 · +0x138/+0x155 -> +0x13F/+0x14B). 프롤로그는 둘 다 그대로.
+//   근거: specs/2026-10-30-game-update-3392.md §3 · §11
 // @build 1.0.0.2976  작업 함수 둘 재도출(2026-09-26, 각 +0x70) - 역직렬화 경로와
 //   본문 크기(2763바이트)가 2944·2949 와 같다. 메시지 ID 는 안 바뀌었다.
 //   근거: specs/2026-09-26-game-update-2976.md §3
@@ -67,7 +70,7 @@ bool companion_capture_install(const mem::Rtti& rtti,
 //
 // 1.0.0.2949(2026-09-22): 2959 역직렬화 0x2A2F0F0 의 +0x180 call 대상. 프롤로그
 // `48 89 5C 24 10 4C 89 44 24 18` 과 본문 2763바이트가 2944 와 같다.
-inline constexpr std::uint64_t kHireWorkRva = 0x2BADC00;   // 2949 0x2BADB90 · 2944 0x2BADB80
+inline constexpr std::uint64_t kHireWorkRva = 0x2E42400;   // 2976 0x2BADC00 · 2949 0x2BADB90
 
 // 소환 작업 함수. 2894 처리기(RVA 0x29621E0; 2850 빌드는 역직렬화 0x2963920 →
 // 0x2B7B130 의 +0x155)가 관문을 통과한 뒤 이것을 부른다 - 정상 소환에서
@@ -88,7 +91,7 @@ inline constexpr std::uint64_t kHireWorkRva = 0x2BADC00;   // 2949 0x2BADB90 · 
 // 1.0.0.2949(2026-09-22): 3069 역직렬화 0x2A30630 의 +0x138 call -> 래퍼 0x2C49600
 // (549바이트, 2944 와 같다) 의 +0x155 call 대상. 프롤로그
 // `48 8B C4 4C 89 48 20 4C 89 40 18` 그대로.
-inline constexpr std::uint64_t kSpawnWorkRva = 0x2B9EBD0;   // 2949 0x2B9EB60 · 2944 0x2B9EB50
+inline constexpr std::uint64_t kSpawnWorkRva = 0x2E33160;   // 2976 0x2B9EBD0 · 2949 0x2B9EB60
 // 마지막 소환 결과. 코드 0 이 성공이다.
 //
 // 게임에는 소환 쿨타임이 있다(TrocTrCallMercenaryCoolTime* 계열).
@@ -132,7 +135,7 @@ HireWorkResult last_hire_work();
 // 게임이 "이미 소환됨" 으로 오판하고, 그러면 그 개체는 소환도
 // 해제도 안 된다. 지금까지 지역 이동·세이브 로드로만 풀리던 그것이다.
 // @class TrocTrResponseHiredMercenaryToTargetAck
-inline constexpr std::uint16_t kHireAckId = 3036;   // 2850 까지 2107
+inline constexpr std::uint16_t kHireAckId = 2901;   // 2976 까지 3036 · 2850 까지 2107
 
 struct HireAck {
     bool valid = false;
@@ -159,7 +162,7 @@ void mark_hire_ack_handled(std::uint64_t merc_no);
 // (0 으로 시작). 컨테이너 핸들을 쓰지 않아 소켓을 막았던 핸들 월드
 // 문제가 없다. 지급한 부적을 이것으로 사용시켜 등록 경로를 캡처한다.
 // @class TrocTrUseItemByItemInfoReq
-inline constexpr std::uint16_t kUseItemByInfoId = 2269;   // 2850 까지 2976
+inline constexpr std::uint16_t kUseItemByInfoId = 2559;   // 2976 까지 2269 · 2850 까지 2976
 inline constexpr std::uint8_t kUseItemByInfoKindC = 0x0D;
 inline constexpr std::size_t kUseItemWireLen = 5 + 13;
 
@@ -187,7 +190,7 @@ bool companion_use_item_ready();
 // 주의: 작업 함수가 0 이 아닌 코드를 돌려주면 게임이 오류 1013 을
 // 만들어 로그아웃한다. 번호가 유효할 때만 부를 것.
 // @class TrocTrCompleteCalculateSummonAfterRegistReq
-inline constexpr std::uint16_t kCompleteSummonId = 2244;   // 2850 까지 2962
+inline constexpr std::uint16_t kCompleteSummonId = 2843;   // 2976 까지 2244 · 2850 까지 2962
 // 좌표를 어디서 얻을지는 밖에서 준다. 카메라 코드는 시험 대상에
 // 링크되지 않으므로 이쪽이 그것을 직접 부르면 안 된다.
 using PositionFn = bool (*)(float out[3]);
@@ -225,7 +228,7 @@ bool parse_hex_bytes(const std::string& text, std::uint8_t* out, std::size_t cap
 //
 // 대상 핸들은 game/actors 의 근처 목록에서 얻는다.
 // @class TrocTrHireMercenaryToTargetReq
-inline constexpr std::uint16_t kHireToTargetId = 2959;   // 2850 까지 2338
+inline constexpr std::uint16_t kHireToTargetId = 2659;   // 2976 까지 2959 · 2850 까지 2338
 inline constexpr std::size_t kHireWireLen = 5 + 5;
 
 // 머리 5바이트 + 본문 5바이트(u32 핸들, u8 플래그)를 조립한다.
@@ -295,7 +298,7 @@ std::uintptr_t companion_pick_session();
 //   rcx = [[세션액터+0x68]+0x110]  MercenaryClanActorComponent
 //   rdx = &결과 u32 (0 이면 성공)   r8w = A   r9w = B
 // @class TrocTrHireMercenaryFromInventoryReq
-inline constexpr std::uint16_t kHireFromInvId = 3021;   // 2850 까지 2454
+inline constexpr std::uint16_t kHireFromInvId = 2975;   // 2976 까지 3021 · 2850 까지 2454
 inline constexpr std::size_t kHireInvWireLen = 5 + 4;
 
 // 머리 5바이트 + 본문 4바이트(u16 A, u16 B)를 조립한다.
@@ -310,7 +313,7 @@ bool request_hire_from_inventory(std::uintptr_t session, std::uint16_t a,
 bool hire_from_inventory_ready();
 
 // @class TrocTrCatchBySummonReq
-inline constexpr std::uint16_t kCatchBySummonId = 2592;   // 2850 까지 2386
+inline constexpr std::uint16_t kCatchBySummonId = 2217;   // 2976 까지 2592 · 2850 까지 2386
 inline constexpr std::size_t kCatchWireLen = 5 + 8;
 // 표본 네 개가 전부 이 값이었다. 세션마다 달라질 수 있으니 캡처에서
 // 본 값이 있으면 그것을 먼저 쓴다.

@@ -56,36 +56,59 @@ constexpr std::size_t kIndexPtr = 0x28;     // (u32 키, u32 용도미상) 쌍�
 constexpr std::size_t kCountField = 0x30;   // u32 개수
 constexpr std::size_t kRecordsPtr = 0x58;   // 레코드 포인터 배열
 
-// --- 레코드 (0x500 바이트) ---
+// --- 레코드 (3392: 0x238 바이트 안팎) ---
 //
 // 이름은 게임이 스스로 알려 준다. 역직렬화 함수의 실패 메시지가
 // "ItemInfo의 _maxEndurance를 읽어들이는데 실패했다" 꼴이라
 // 필드 이름과 오프셋을 짝지을 수 있다 - `tools/rtti/fields.py` 가
-// 그것을 뽑는다. 실측 109개.
-constexpr std::size_t kRecKey = 0x00;       // u32 키
+// 그것을 뽑는다. 3392 에서 113개.
+//
+// **1.0.0.3392(DLC "미지의 여정", 2026-10-30)에서 레이아웃이 통째로 재배치됐다.**
+// bool 류가 +0xC 부터 모이고 목록은 뒤로 갔다. 머리는 {+0 u32 키, +8 문자열 객체*} 에서
+// {+0 문자열 객체*, +8 u32 키} 로 뒤바뀌었다. 목록 칸은 인라인 {ptr, u32 개수, u32 용량}
+// (16바이트)에서 **그 벡터를 가리키는 지연 포인터 8바이트**로 바뀌었다 - 역직렬화가
+// 플래그 바이트가 0 이면 만들지 않으므로 널이면 빈 목록이다.
+// 근거: specs/2026-10-30-game-update-3392.md §12. (2976 까지의 자리는 각 줄 뒤에 남겼다.)
+constexpr std::size_t kRecKey = 0x08;       // u32 키 (2976 까지 +0x00)
 // _stringKey. 엔진 문자열 객체를 가리킨다 - { char* +0x00, u32 길이 +0x08 }.
 // 장비의 캐릭터 전용 구분이 이 **내부 이름**에서만 나온다(표시명은
 // 현지화되므로 거기엔 없다).
-constexpr std::size_t kRecStringKey = 0x08;
-constexpr std::size_t kRecMaxStack = 0x18;  // u32 _maxStackCount
-constexpr std::size_t kRecNameKey = 0x28;   // u64 이름 현지화 키
-// u64 설명 현지화 키. `_itemDesc`(+0xB0) 객체의 키 칸이다 - 이름 키 +0x28 이
-// `_itemName`(+0x20) 의 키 칸인 것과 같은 꼴(스펙 §3, 6816개 전수).
+constexpr std::size_t kRecStringKey = 0x00;  // (2976 까지 +0x08)
+constexpr std::size_t kRecMaxStack = 0x10;  // u32 _maxStackCount (2976 +0x18)
+// u64 이름 현지화 키 = `_itemName`(+0x90) 객체의 키 칸(+8). 2976 까지는 _itemName 이
+// +0x20 이라 +0x28 이었다(스펙 §3, 6816개 전수).
+constexpr std::size_t kRecNameKey = 0x98;
+// u64 설명 현지화 키. `_itemDesc`(+0xB0) 객체의 키 칸 - 3392 에서도 그대로다.
 constexpr std::size_t kRecDescKey = 0xB8;
-constexpr std::size_t kRecEquipType = 0x42;  // u16 _equipTypeInfo (FFFF=장비 아님)
-// _equipAbleHash(+0x68)는 탐침도 쓰므로 items.h 에 있다.
-constexpr std::size_t kRecCategory = 0xA3;  // u8  _itemType (74종)
-constexpr std::size_t kRecGrade = 0x210;    // u8  _itemTier (0=없음, 1..5)
-constexpr std::size_t kRecSockets = 0x238;    // u32 소켓 칸 수 (이름 없음)
-constexpr std::size_t kRecSharpness = 0x2E8;  // i16 _SharpnessData 의 상한
-// _enchantDataList 는 {ptr +0x248, u32 개수 +0x250} 다. 담금질은
-// 0..개수-1 이라 게임이 `담금질 <= [+0x250] - 1` 로 검사한다.
-constexpr std::size_t kRecTemperCap = 0x250;  // u32 담금질 상한+1
-constexpr std::size_t kRecMaxEndurance = 0x400;  // u16 _maxEndurance
-// _repairDataList 는 {ptr +0x408, u32 개수 +0x410} 다.
-constexpr std::size_t kRecRepairCount = 0x410;   // u32
+constexpr std::size_t kRecEquipType = 0x4A;  // u16 _equipTypeInfo (FFFF=장비 아님) (2976 +0x42)
+// _equipAbleHash(+0x64)는 탐침도 쓰므로 items.h 에 있다.
+constexpr std::size_t kRecCategory = 0x37;  // u8  _itemType (74종) (2976 +0xA3)
+constexpr std::size_t kRecGrade = 0x39;     // u8  _itemTier (0=없음, 1..5) (2976 +0x210)
+// 소켓 칸 수는 `_dropDefaultData`(DropDefaultData, 0x30바이트)의 `_socketValidCount` 다.
+// 3392 에서 DropDefaultData 가 지연 객체(+0x180 포인터)가 되고 그 칸이 **u8** +0x2C 가 됐다
+// (2976 까지는 ItemInfo 안 인라인 +0x218 의 +0x20 = +0x238, u32 로 읽었다). 바로 뒤 +0x2D 는
+// `_useSocket`(u8) - 소켓 상한을 0 에서 올릴 때 이것도 봐야 하는지는 게임에서 확인할 것.
+constexpr std::size_t kRecDropDefault = 0x180;
+constexpr std::size_t kDropSocketCount = 0x2C;
+// `_sharpnessData` 도 지연 객체(+0x1E0 포인터)다. 상한은 그 첫 i16 - 변환 함수가
+// `movzx word [ptr + rax*2]` 로 읽는 배열의 0번이다(2976 까지 인라인 +0x2E8).
+constexpr std::size_t kRecSharpnessPtr = 0x1E0;
+// _enchantDataList 는 지연 벡터 {EnchantData* +0, u32 개수 +8, u32 용량 +0xC} 를 가리키는
+// 포인터(+0x188)다. 담금질은 0..개수-1 이라 게임이 `담금질 <= 개수 - 1` 로 검사한다.
+// (2976 까지 인라인 {ptr +0x248, 개수 +0x250}.)
+constexpr std::size_t kRecEnchantList = 0x188;
+constexpr std::size_t kRecMaxEndurance = 0x0E;  // u16 _maxEndurance (2976 +0x400)
+// _repairDataList 도 지연 벡터 포인터(+0x228)다(2976 까지 {ptr +0x408, 개수 +0x410}).
+constexpr std::size_t kRecRepairList = 0x228;
 
 constexpr const char* kManagerClass = ".?AVItemInfoManager@pa@@";
+
+// 지연 포인터 칸(목록 벡터·하위 객체)을 읽는다. 못 읽거나 널이면 0.
+std::uintptr_t lazy_ptr(const mem::Reader& r, std::uintptr_t at) {
+    std::uint64_t p = 0;
+    if (!r.read_value(at, &p)) return 0;
+    return static_cast<std::uintptr_t>(p);
+}
 
 // 개수와 레코드 배열을 함께 읽고 앞뒤가 맞는지 본다.
 bool read_header(const mem::Reader& r, std::uintptr_t manager,
@@ -201,11 +224,17 @@ bool read_item_table(const mem::Reader& reader, std::uintptr_t manager,
         // 아이템(재료 등)은 그대로 빼면 0xFFFFFFFF 가 되므로 0 으로
         // 둔다 - 담금질이 없는 것이다.
         std::uint32_t cap = 0;
-        reader.read_value(e.record + kRecTemperCap, &cap);
+        if (const std::uintptr_t vec = lazy_ptr(reader, e.record + kRecEnchantList)) {
+            reader.read_value(vec + kLazyVecCount, &cap);
+        }
         e.max_temper = (cap == 0) ? 0 : cap - 1;
 
-        // 담금질과 달리 상한 그대로다 - 게임이 `>=` 로 검사한다.
-        reader.read_value(e.record + kRecSockets, &e.max_sockets);
+        // 담금질과 달리 상한 그대로다 - 게임이 `>=` 로 검사한다. 3392 부터
+        // DropDefaultData 안의 u8 이고, 그 객체가 없으면 소켓도 없다.
+        if (const std::uintptr_t dd = lazy_ptr(reader, e.record + kRecDropDefault)) {
+            std::uint8_t sockets = 0;
+            if (reader.read_value(dd + kDropSocketCount, &sockets)) e.max_sockets = sockets;
+        }
 
         // 소켓 갈래를 가르는 값. 못 읽으면 0xFFFF(=장비 아님)로 두어
         // 소켓을 안 싣는 쪽으로 기운다.
@@ -216,8 +245,12 @@ bool read_item_table(const mem::Reader& reader, std::uintptr_t manager,
         // 0xFFFF 면 내구도가 없는 아이템이다 - 담금질의 _equipTypeInfo
         // (+0x42) 와 같은 표기법이다.
         reader.read_value(e.record + kRecMaxEndurance, &e.max_endurance);
-        reader.read_value(e.record + kRecRepairCount, &e.repair_entries);
-        reader.read_value(e.record + kRecSharpness, &e.max_sharpness);
+        if (const std::uintptr_t vec = lazy_ptr(reader, e.record + kRecRepairList)) {
+            reader.read_value(vec + kLazyVecCount, &e.repair_entries);
+        }
+        if (const std::uintptr_t sd = lazy_ptr(reader, e.record + kRecSharpnessPtr)) {
+            reader.read_value(sd, &e.max_sharpness);
+        }
 
         items.push_back(e);
     }
@@ -1064,13 +1097,21 @@ std::vector<SocketCapRule> g_cap_rules;
 std::atomic<bool> g_cap_on{false};
 
 // 인프로세스 직접 쓰기. **주입 DLL 전용**이다(equip.cpp 와 같은 규약).
-bool cap_wr32(std::uintptr_t at, std::uint32_t v) {
+// 3392 부터 소켓 칸 수는 u8 이다(2976 까지 u32). 4바이트로 쓰면 바로 뒤 `_useSocket` 과
+// 그 뒤 두 바이트를 덮는다.
+bool cap_wr8(std::uintptr_t at, std::uint8_t v) {
     __try {
-        *reinterpret_cast<volatile std::uint32_t*>(at) = v;
+        *reinterpret_cast<volatile std::uint8_t*>(at) = v;
         return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return false;
     }
+}
+
+// 소켓 칸 수가 사는 자리(DropDefaultData +0x2C). 그 객체가 없으면 0.
+std::uintptr_t socket_count_cell(const mem::Reader& reader, std::uintptr_t record) {
+    const std::uintptr_t dd = lazy_ptr(reader, record + kRecDropDefault);
+    return dd == 0 ? 0 : dd + kDropSocketCount;
 }
 
 // 규칙에서 이 아이템이 받을 값. 없으면 0(=안 건드림).
@@ -1175,12 +1216,15 @@ SocketCapResult socket_cap_apply(const mem::Reader& reader,
             continue;
         }
         // 목록이 낡았을 수 있다. 표에서 다시 읽어 대조한 뒤에만 쓴다.
-        std::uint32_t live = 0;
-        if (!reader.read_value(e.record + kRecSockets, &live)) continue;
+        // 3392 부터 칸은 DropDefaultData(지연 객체)의 u8 이다 - 객체가 없으면 올릴 자리가 없다.
+        const std::uintptr_t cell = socket_count_cell(reader, e.record);
+        if (cell == 0 || want > 0xFF) continue;
+        std::uint8_t live = 0;
+        if (!reader.read_value(cell, &live)) continue;
         if (live != e.max_sockets) continue;   // 목록과 표가 어긋난다
-        if (!cap_wr32(e.record + kRecSockets, want)) continue;
-        std::uint32_t back = 0;
-        if (!reader.read_value(e.record + kRecSockets, &back) || back != want) {
+        if (!cap_wr8(cell, static_cast<std::uint8_t>(want))) continue;
+        std::uint8_t back = 0;
+        if (!reader.read_value(cell, &back) || back != want) {
             continue;                           // 안 써졌다
         }
         saved.push_back(CapSaved{e.record, e.key, live, want});
@@ -1216,7 +1260,9 @@ SocketCapResult socket_cap_restore(const mem::Reader& reader) {
     std::vector<std::pair<std::uint32_t, std::uint32_t>> caps;
     caps.reserve(saved.size());
     for (const auto& s : saved) {
-        if (cap_wr32(s.record + kRecSockets, s.original)) {
+        const std::uintptr_t cell = socket_count_cell(reader, s.record);
+        if (cell != 0 && s.original <= 0xFF &&
+            cap_wr8(cell, static_cast<std::uint8_t>(s.original))) {
             ++r.changed;
         } else {
             ++r.skipped;

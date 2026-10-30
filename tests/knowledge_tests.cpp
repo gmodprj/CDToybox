@@ -115,14 +115,16 @@ TEST(the_measured_offsets_are_pinned) {
     // 뒤 `[rbx+8]` 로 번호를 견주고 `[rbx+0x58]` 배열을 읽는다(그 결과의 +0x104 를 등록
     // 호출부가 읽으므로 지식 표임이 코드로 선다).
     // 2976(2026-09-26): 같은 경로(조회 0x433650 -> 적재 0x433665)로 0x06D69A98.
-    CHECK(cdtb::game::kKnowMgrGlobalRva == 0x06D69A98);
+    // 3392(2026-10-30): 조회 0x4DA110(같은 모양 - [rbx+8] 견주고 [rbx+0x58] 배열) -> 적재 0x4DA125
+    //   로 0x071ADB30. 은행의 이웃 전역이 실패 갈래의 표 이름 문자열로 전부 갈린다(knowledgeInfo).
+    CHECK(cdtb::game::kKnowMgrGlobalRva == 0x071ADB30);
     CHECK(cdtb::game::kKnowMgrCount == 0x08);
     CHECK(cdtb::game::kKnowMgrArray == 0x58);
     CHECK(cdtb::game::kKnowCompData == 0x18);
     CHECK(cdtb::game::kKnowCompCount == 0x20);
     CHECK(cdtb::game::kKnowRecLevel == 0x00);
     CHECK(cdtb::game::kKnowRecFlag == 0x10);
-    CHECK(cdtb::game::kInfoLevels == 0x88);
+    CHECK(cdtb::game::kInfoLevels == 0x98);   // 3392 (2976 0x88)
     CHECK(cdtb::game::kLevelStride == 0xE8);
     CHECK(cdtb::game::kLearnFromStride == 0x58);
     CHECK(cdtb::game::kLearnFromTag == 0x44);
@@ -178,10 +180,12 @@ TEST(the_skill_registration_constants_are_pinned) {
     //   ServerKnowledgeActorComponent vtable RVA 2944 0x05A13200 -> 2949 0x05B2B880 (RTTI)
     //   2976 0x02B72D00 - 호출부 0x2B73B80 · 0x2B73C28(간격 0xA8, 2944·2949 와 같다).
     //   ServerKnowledgeActorComponent vtable RVA 2949 0x05B2B880 -> 2976 0x05B2BA70
-    CHECK(cdtb::game::kKnowRegisterRva == 0x02B72D00);
-    CHECK(cdtb::game::kServerCompVtableRva == 0x05B2BA70);
+    //   3392 0x02E06480 - 호출부 0x2E073A4 · 0x2E07442(간격 0x9E; 호출부 첫 줄이 이제
+    //     `cmp word [rax+0x18], cx` 다 - 레코드 레이아웃이 바뀌었다). vtable 0x05EE3B90.
+    CHECK(cdtb::game::kKnowRegisterRva == 0x02E06480);
+    CHECK(cdtb::game::kServerCompVtableRva == 0x05EE3B90);
     CHECK(cdtb::game::kKnowMapCount == 0xF4);
-    CHECK(cdtb::game::kInfoApplySkill == 0x104);
+    CHECK(cdtb::game::kInfoApplySkill == 0x18);   // 3392 (2976 0x104)
     CHECK(cdtb::game::kNoApplySkill == 0xFFFF);
     // 습득 시각 칸은 레코드 안이어야 한다(24바이트를 넘으면 남의 레코드를 쓴다).
     CHECK(cdtb::game::kKnowRecObj + 8 <= cdtb::game::kKnowRecStride);

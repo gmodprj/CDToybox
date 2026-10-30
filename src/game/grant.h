@@ -1,5 +1,8 @@
 #pragma once
 
+// @build 1.0.0.3392  kHireCheckRva 재도출(2026-10-30) - 썽크 0x23112A0 `E9 0B 5A BA 0A` -> 본체 0xCEB6CB0.
+//   **본체 프롤로그가 바뀌어**(mov rax,rsp 꼴 -> mov [rsp+8],rbx 꼴) kHireCheckBodyPrologue 를 28바이트로
+//   다시 잡았다(그 길이부터 exe 에서 1곳). 근거: specs/2026-10-30-game-update-3392.md §3
 // @build 1.0.0.2976  kHireCheckRva 재도출(2026-09-26, +0x50) - 썽크 E9 BB E2 36 0C
 //   -> 본체 0xE4BCBD0. 근거: specs/2026-09-26-game-update-2976.md §3
 // @build 1.0.0.2949  kHireCheckRva 재도출(고용 작업 +0x3F3, 3021 작업 +0x36A 교차검증
@@ -534,7 +537,7 @@ bool endurance_ready();
 // 1.0.0.2949(2026-09-22): 고용 작업 0x2BADB90 +0x3F3 과 3021 작업 0x2BA1520 +0x36A 가
 // 둘 다 0x214E8C0 을 부른다. 썽크 `E9 AB 4C 2E 0C` -> 본체 0xE433570, 본체 프롤로그가
 // kHireCheckBodyPrologue 와 같다.
-inline constexpr std::uint64_t kHireCheckRva = 0x214E910;   // 2949 0x214E8C0 · 2944 0x214E8B0
+inline constexpr std::uint64_t kHireCheckRva = 0x23112A0;   // 2976 0x214E910 · 2949 0x214E8C0
 
 // 썽크 n바이트가 `jmp rel32`(E9) 면 그 대상 절대 주소, 아니면 0. thunk_addr 는
 // 썽크의 절대 주소다(rel32 는 다음 명령 기준). 읽기는 호출자가 한다.
@@ -544,8 +547,13 @@ std::uintptr_t hire_check_jmp_target(const std::uint8_t* thunk, std::size_t n,
 // 본체 프롤로그. 2850 의 0xE0D44F0: mov rax,rsp / mov [rax+8],rbx /
 // mov [rax+0x20],r9d. 썽크 주변 ±0x200 에 E9 바이트가 43개 있어도 이 프롤로그로
 // 가는 것은 하나뿐이라(실측 2026-09-11) 첫 바이트만 보던 가드보다 훨씬 좁다.
+// 1.0.0.3392(2026-10-30): 본체 0xCEB6CB0 의 프롤로그가 `mov [rsp+8],rbx / mov [rsp+0x20],r9d /
+// push rbp·rsi·rdi·r12·r13·r14·r15 / sub rsp,0x20 / movzx r12d,r8w` 로 바뀌었다(뜻은 같다 -
+// rbx·r9d 보존). 앞 16·20바이트는 exe 에 5곳, 24바이트는 3곳, **28바이트부터 1곳**이라 이 길이다.
+// (2976 까지: 48 89 E0 48 89 58 08 44 89 48 20 - mov rax,rsp / mov [rax+8],rbx / mov [rax+0x20],r9d)
 inline constexpr std::uint8_t kHireCheckBodyPrologue[] = {
-    0x48, 0x89, 0xE0, 0x48, 0x89, 0x58, 0x08, 0x44, 0x89, 0x48, 0x20};
+    0x48, 0x89, 0x5C, 0x24, 0x08, 0x44, 0x89, 0x4C, 0x24, 0x20, 0x55, 0x56, 0x57, 0x41,
+    0x54, 0x41, 0x55, 0x41, 0x56, 0x41, 0x57, 0x48, 0x83, 0xEC, 0x20, 0x45, 0x0F, 0xB7};
 bool hire_check_body_ok(const std::uint8_t* body, std::size_t n);
 
 // 그 행이 등록 가능한지 게임에게 묻는다. 게임 스레드에서 실행한다.
