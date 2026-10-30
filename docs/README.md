@@ -144,7 +144,8 @@
 | 문서 | 상태 | 지금 참인 것 · 근거 |
 |---|---|---|
 | [patch-recheck](superpowers/specs/2026-09-01-patch-recheck.md) | ✅ 지금도 쓰는 절차 | 갱신 뒤 확인 목록은 TS §5.5 도 |
-| [game-update-2976](superpowers/specs/2026-09-26-game-update-2976.md) | ✅ 상수 이관 · 효과 표 재생성 · 게임 대조(효과 6줄 · 어비스 2/5/7%) | 41개 중 36개 이동. callgate 둘은 창의 전역 변위 때문에 슬롯에서 재도출. 지급 구동 자리만 게임 확인 남음 |
+| [game-update-3392](superpowers/specs/2026-10-30-game-update-3392.md) | 🟡 정적 재도출 완료 · **게임 확인 전** (DLC "미지의 여정") | 고정 RVA 41개(20개 손으로) · 메시지 ID 8/8 · AOB 3개 · 관문 창 6개 · **데이터 클래스 레이아웃 통째로 재배치**(§12, `fields.py` 60여 칸, ItemInfo 목록은 지연 포인터). 효과 배율 표 미완(§12.3). 확인 목록 §14 |
+| [game-update-2976](superpowers/specs/2026-09-26-game-update-2976.md) | ✅ 상수 이관 · 효과 표 재생성 · 게임 대조(효과 6줄 · 어비스 2/5/7%) | 41개 중 36개 이동. callgate 둘은 창의 전역 변위 때문에 슬롯에서 재도출. 배포본이 게임에서 돌기 전에 3392 가 와 §14 는 미완인 채 넘어감 |
 | [game-update-2949](superpowers/specs/2026-09-22-game-update-2949.md) | ✅ 완료 (게임 확인 2026-09-22) | 고정 RVA 전부 재도출, §11.1 전 항목 게임 확인. 재도출 경로는 `tools/rtti/rederive.py` 로 옮겼다 |
 | [game-update-2944](superpowers/specs/2026-09-18-game-update-2944.md) | 📜 기록 | specguard 5/8 · spawnguard · 구동 자리는 이후 해결. 남은 것: 세션 전역 A/B · `dragondiag`(TS §8). 2944 자리들은 2949 에서 다시 짚었다 |
 | [specguard-div-family](superpowers/specs/2026-09-20-specguard-div-family.md) | ✅ 해결 | 5/8 게임 확인, 실제로 4회 막은 것까지 확인(STATUS §1.15). 가족 표식은 2949 재도출에도 그대로 쓰였다 |
